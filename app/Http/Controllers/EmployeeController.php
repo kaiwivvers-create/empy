@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -47,6 +48,7 @@ class EmployeeController extends Controller
             'departments' => Department::orderBy('name')->get(),
             'positions' => Position::orderBy('name')->get(),
             'managers' => Employee::active()->with('position')->orderBy('name')->get(),
+            'accountRoles' => $this->accountRoles(),
             'isManagerView' => $user->isManager(),
             'showTrashed' => $showTrashed,
             'filters' => $request->only('search', 'department', 'status'),
@@ -109,6 +111,7 @@ class EmployeeController extends Controller
             'departments' => Department::orderBy('name')->get(),
             'positions' => Position::orderBy('name')->get(),
             'managers' => Employee::active()->whereKeyNot($employee->id)->with('position')->orderBy('name')->get(),
+            'accountRoles' => $this->accountRoles(),
         ]);
     }
 
@@ -189,7 +192,7 @@ class EmployeeController extends Controller
             'hire_date' => ['nullable', 'date'],
             'status' => ['required', 'in:active,inactive'],
             'account_email' => ['nullable', 'email', 'max:255'],
-            'account_role' => ['required', 'in:employee,manager'],
+            'account_role' => ['required', 'exists:roles,name', 'not_in:super_admin'],
             'account_password' => ['nullable', 'string', 'min:6'],
             'user_id' => ['nullable', 'exists:users,id'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
@@ -300,6 +303,19 @@ class EmployeeController extends Controller
         }
 
         return $employee?->photo_path;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function accountRoles(): array
+    {
+        return Role::query()
+            ->where('name', '!=', User::ROLE_SUPER_ADMIN)
+            ->orderBy('id')
+            ->get()
+            ->mapWithKeys(fn (Role $role) => [$role->name => $role->displayLabel()])
+            ->all();
     }
 
     private function authorizeView(Request $request, Employee $employee): void

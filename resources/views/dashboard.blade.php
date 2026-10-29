@@ -141,7 +141,13 @@
                     <a href="{{ route('reports.index') }}" class="btn-ghost">{{ __('app.dashboard.view_report') }}</a>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="table-stable w-full min-w-[42rem]">
+                        <colgroup>
+                            <col>
+                            <col class="w-[11rem]">
+                            <col class="w-[7rem]">
+                            <col class="w-[9rem]">
+                        </colgroup>
                         <thead class="table-head">
                             <tr>
                                 <th>{{ __('app.common.employee') }}</th>
@@ -276,7 +282,13 @@
                     </a>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="table-stable w-full min-w-[42rem]">
+                        <colgroup>
+                            <col>
+                            <col class="w-[11rem]">
+                            <col class="w-[8rem]">
+                            <col class="w-[9rem]">
+                        </colgroup>
                         <thead class="table-head">
                             <tr>
                                 <th>{{ __('app.common.name') }}</th>
@@ -482,7 +494,12 @@
                     <h3 class="font-bold text-slate-900">{{ __('app.employees.history') }}</h3>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="table-stable w-full min-w-[28rem]">
+                        <colgroup>
+                            <col>
+                            <col class="w-[7rem]">
+                            <col class="w-[7rem]">
+                        </colgroup>
                         <thead class="table-head">
                             <tr>
                                 <th>{{ __('app.common.period') }}</th>

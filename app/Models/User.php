@@ -70,19 +70,27 @@ class User extends Authenticatable
         return $this->role === self::ROLE_SUPER_ADMIN;
     }
 
+    /**
+     * Hard-coded capability level of the role. Custom roles inherit one.
+     */
+    public function baseRole(): string
+    {
+        return Role::baseFor((string) $this->role);
+    }
+
     public function isAdmin(): bool
     {
-        return in_array($this->role, [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN], true);
+        return $this->isSuperAdmin() || $this->baseRole() === self::ROLE_ADMIN;
     }
 
     public function isManager(): bool
     {
-        return $this->role === self::ROLE_MANAGER;
+        return $this->baseRole() === self::ROLE_MANAGER;
     }
 
     public function isEmployee(): bool
     {
-        return $this->role === self::ROLE_EMPLOYEE;
+        return $this->baseRole() === self::ROLE_EMPLOYEE;
     }
 
     public function roleLabel(): string
@@ -92,7 +100,8 @@ class User extends Authenticatable
             return __('app.roles.admin');
         }
 
-        return __('app.roles.'.$this->role);
+        return Role::allCached()->firstWhere('name', $this->role)?->displayLabel()
+            ?? __('app.roles.'.$this->role);
     }
 
     public function avatarUrl(): ?string

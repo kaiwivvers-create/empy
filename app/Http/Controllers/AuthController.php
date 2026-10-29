@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Captcha;
 use App\Support\PageAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,10 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return view('auth.login');
+        return view('auth.login', [
+            'captcha' => Captcha::challenge(),
+            'turnstileEnabled' => Captcha::turnstileEnabled(),
+        ]);
     }
 
     public function login(Request $request): RedirectResponse
@@ -35,6 +39,14 @@ class AuthController extends Controller
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             throw ValidationException::withMessages([
                 'email' => __('app.auth.throttled', ['seconds' => RateLimiter::availableIn($throttleKey)]),
+            ]);
+        }
+
+        if ($captchaError = Captcha::verify($request)) {
+            RateLimiter::hit($throttleKey, 60);
+
+            throw ValidationException::withMessages([
+                'captcha' => __($captchaError),
             ]);
         }
 

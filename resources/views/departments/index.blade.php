@@ -16,7 +16,15 @@
 
     <div class="card">
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full min-w-[60rem]">
+                <colgroup>
+                    <col class="w-[7rem]">
+                    <col>
+                    <col class="w-[18rem]">
+                    <col class="w-[12rem]">
+                    <col class="w-[7rem]">
+                    <col class="w-[9rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th>{{ __('app.common.code') }}</th>

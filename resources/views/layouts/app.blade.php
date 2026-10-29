@@ -42,6 +42,7 @@
     <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
     <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16" cy="10" r="1"/><path d="M12 21a3 3 0 0 0 0-6h-1a2 2 0 0 1 0-4h4a3 3 0 0 0 3-3"/></symbol>
     <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v7c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12v7c0 1.66 4.03 3 9 3s9-1.34 9-3v-7"/></symbol>
     <symbol id="i-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol>
 </svg>
 
@@ -88,10 +89,16 @@
         @endif
 
         @if ($can('evaluations'))
-            <a href="{{ route('evaluations.index') }}" class="nav-link {{ request()->routeIs('evaluations.*') ? 'nav-link-active' : '' }}">
+            <a href="{{ route('evaluations.index') }}" class="nav-link {{ request()->routeIs('evaluations.index') || request()->routeIs('evaluations.show') || request()->routeIs('evaluations.edit') ? 'nav-link-active' : '' }}">
                 <svg class="h-5 w-5"><use href="#i-clipboard"/></svg>
                 {{ __('app.nav.evaluations') }}
             </a>
+            @unless ($user->isEmployee())
+                <a href="{{ route('evaluations.team') }}" class="nav-link {{ request()->routeIs('evaluations.team') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5"><use href="#i-users"/></svg>
+                    {{ __('app.team.title') }}
+                </a>
+            @endunless
         @endif
 
         @if ($can('feedback'))
@@ -105,9 +112,13 @@
         @endif
 
         @if (! $user->isEmployee() && $can('reports'))
-            <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'nav-link-active' : '' }}">
+            <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.index') || request()->routeIs('reports.calibration') || request()->routeIs('reports.pdf') || request()->routeIs('reports.excel') ? 'nav-link-active' : '' }}">
                 <svg class="h-5 w-5"><use href="#i-chart"/></svg>
                 {{ __('app.nav.reports') }}
+            </a>
+            <a href="{{ route('reports.progress') }}" class="nav-link {{ request()->routeIs('reports.progress') ? 'nav-link-active' : '' }}">
+                <svg class="h-5 w-5"><use href="#i-list"/></svg>
+                {{ __('app.progress.title') }}
             </a>
         @endif
 
@@ -164,6 +175,12 @@
                     {{ __('app.activity.title') }}
                 </a>
             @endif
+            @if ($user->isSuperAdmin())
+                <a href="{{ route('roles.index') }}" class="nav-link {{ request()->routeIs('roles.*') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5"><use href="#i-shield"/></svg>
+                    {{ __('app.roles_page.title') }}
+                </a>
+            @endif
         @endif
 
         @if ($user->isSuperAdmin())
@@ -175,6 +192,10 @@
             <a href="{{ route('branding.edit') }}" class="nav-link {{ request()->routeIs('branding.*') ? 'nav-link-active' : '' }}">
                 <svg class="h-5 w-5"><use href="#i-palette"/></svg>
                 {{ __('app.branding.title') }}
+            </a>
+            <a href="{{ route('database.index') }}" class="nav-link {{ request()->routeIs('database.*') ? 'nav-link-active' : '' }}">
+                <svg class="h-5 w-5"><use href="#i-database"/></svg>
+                {{ __('app.database.title') }}
             </a>
         @endif
     </nav>
@@ -206,7 +227,7 @@
 
 <div class="lg:pl-64 print:pl-0">
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur print:hidden">
-        <div class="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 items-center justify-between gap-4 px-3 sm:px-4 lg:px-5">
             <div class="flex items-center gap-3">
                 <button id="sidebar-open" class="rounded-lg border border-slate-200 p-2 text-slate-600 lg:hidden" aria-label="Open menu">
                     <svg class="h-5 w-5"><use href="#i-menu"/></svg>
@@ -215,7 +236,7 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-3">
-                <div class="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                <div class="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" title="{{ __('app.language') }}">
                     @foreach (['id' => 'ID', 'en' => 'EN'] as $code => $text)
                         <a href="{{ route('locale.switch', $code) }}"
                            class="rounded-lg px-2.5 py-1 text-xs font-bold transition {{ $locale === $code ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800' }}">
@@ -227,7 +248,7 @@
         </div>
     </header>
 
-    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <main class="w-full px-3 py-5 sm:px-4 lg:px-5 lg:py-6">
         @include('partials.flash')
         @yield('content')
     </main>

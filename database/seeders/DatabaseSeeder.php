@@ -10,13 +10,25 @@ use App\Models\Evaluation;
 use App\Models\EvaluationPeriod;
 use App\Models\ImprovementPlan;
 use App\Models\Position;
+use App\Models\RolePermission;
 use App\Models\User;
+use App\Support\PageAccess;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Persist the access defaults so the matrix starts fully populated.
+        foreach (PageAccess::matrixRoles() as $role) {
+            foreach (PageAccess::defaults() as $page => $roles) {
+                RolePermission::updateOrCreate(
+                    ['role' => $role, 'permission' => $page],
+                    ['is_allowed' => (bool) ($roles[$role] ?? false)],
+                );
+            }
+        }
+
         $departmentData = [
             ['code' => 'HRD', 'name' => 'Human Resources', 'description' => 'People management and administration'],
             ['code' => 'OPS', 'name' => 'Operations', 'description' => 'Daily operations and service delivery'],

@@ -16,7 +16,8 @@ class AccessController extends Controller
         return view('settings.access', [
             'pages' => PageAccess::pages(),
             'matrix' => PageAccess::matrix(),
-            'roles' => PageAccess::MATRIX_ROLES,
+            'defaults' => PageAccess::defaults(),
+            'roles' => PageAccess::matrixRoles(),
         ]);
     }
 
@@ -28,7 +29,7 @@ class AccessController extends Controller
 
         $permissions = $data['permissions'] ?? [];
 
-        foreach (PageAccess::MATRIX_ROLES as $role) {
+        foreach (PageAccess::matrixRoles() as $role) {
             foreach (array_keys(PageAccess::pages()) as $page) {
                 RolePermission::updateOrCreate(
                     ['role' => $role, 'permission' => $page],
@@ -40,5 +41,27 @@ class AccessController extends Controller
         ActivityLogger::record('updated', 'User access permissions updated');
 
         return back()->with('success', __('app.access.success_updated'));
+    }
+
+    public function updateDefaults(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'permissions' => ['nullable', 'array'],
+        ]);
+
+        PageAccess::saveDefaults($data['permissions'] ?? []);
+
+        ActivityLogger::record('updated', 'Default user access permissions updated');
+
+        return back()->with('success', __('app.access.success_defaults'));
+    }
+
+    public function reset(): RedirectResponse
+    {
+        PageAccess::resetToDefaults();
+
+        ActivityLogger::record('updated', 'User access matrix reset to defaults');
+
+        return back()->with('success', __('app.access.success_reset'));
     }
 }

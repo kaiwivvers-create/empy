@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     initModals();
+    initDrawers();
     initCroppers();
     initReportChart();
 
@@ -86,6 +87,61 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modals.some((modal) => modal.dataset.open === 'true')) {
             syncBodyLock();
         }
+    }
+
+    function initDrawers() {
+        const drawers = Array.from(document.querySelectorAll('[data-drawer]'));
+
+        if (drawers.length === 0) {
+            return;
+        }
+
+        const setOpen = (drawer, open) => {
+            drawer.dataset.open = open ? 'true' : 'false';
+            drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+            document.body.classList.toggle('drawer-open', drawers.some((item) => item.dataset.open === 'true'));
+
+            if (!open && drawer.hasAttribute('data-autoopen')) {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('employee');
+                window.history.replaceState({}, '', url.toString());
+            }
+        };
+
+        document.querySelectorAll('[data-drawer-open]').forEach((trigger) => {
+            trigger.addEventListener('click', () => {
+                const drawer = document.getElementById(trigger.getAttribute('data-drawer-open'));
+
+                if (!drawer) {
+                    return;
+                }
+
+                drawers.forEach((item) => setOpen(item, item === drawer));
+                drawer.querySelector('input:not([type="hidden"]), select, textarea, [data-drawer-close]')?.focus({ preventScroll: true });
+            });
+        });
+
+        drawers.forEach((drawer) => {
+            drawer.querySelectorAll('[data-drawer-close]').forEach((closer) => {
+                closer.addEventListener('click', () => setOpen(drawer, false));
+            });
+
+            if (drawer.hasAttribute('data-autoopen')) {
+                window.requestAnimationFrame(() => window.setTimeout(() => setOpen(drawer, true), 30));
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            const open = drawers.find((drawer) => drawer.dataset.open === 'true');
+
+            if (open) {
+                setOpen(open, false);
+            }
+        });
     }
 
     function initCroppers() {
@@ -241,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 400,
             );
 
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const dataUrl = canvas.toDataURL('image/png');
             dataInput.value = dataUrl;
 
             if (preview) {

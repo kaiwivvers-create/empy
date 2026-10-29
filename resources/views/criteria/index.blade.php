@@ -21,7 +21,15 @@
 
     <div class="card">
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full min-w-[58rem]">
+                <colgroup>
+                    <col class="w-[4rem]">
+                    <col>
+                    <col class="w-[20rem]">
+                    <col class="w-[7rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[10rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th class="w-16 text-center">#</th>

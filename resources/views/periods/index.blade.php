@@ -25,7 +25,15 @@
 
     <div class="card">
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full min-w-[62rem]">
+                <colgroup>
+                    <col>
+                    <col class="w-[8rem]">
+                    <col class="w-[12rem]">
+                    <col class="w-[6rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[17rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th>{{ __('app.common.period') }}</th>

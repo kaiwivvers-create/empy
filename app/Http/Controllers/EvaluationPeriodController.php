@@ -58,7 +58,9 @@ class EvaluationPeriodController extends Controller
             ActivityLogger::changes($period, $before),
         );
 
-        return redirect()->route('periods.index')->with('success', __('app.periods.success_updated'));
+        // Back to wherever the form was opened (periods page or an
+        // evaluation detail page with the inline period editor).
+        return back()->with('success', __('app.periods.success_updated'));
     }
 
     public function destroy(EvaluationPeriod $period): RedirectResponse

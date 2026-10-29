@@ -59,7 +59,15 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full min-w-[62rem]">
+                <colgroup>
+                    <col>
+                    <col class="w-[11rem]">
+                    <col class="w-[11rem]">
+                    <col class="w-[11rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[10rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th>{{ __('app.common.employee') }}</th>
@@ -151,6 +159,7 @@
                 'departments' => $departments,
                 'positions' => $positions,
                 'managers' => $managers,
+                'accountRoles' => $accountRoles,
                 'prefix' => 'employee-create',
             ])
         </x-modal-form>
@@ -163,6 +172,7 @@
                         'departments' => $departments,
                         'positions' => $positions,
                         'managers' => $managers,
+                        'accountRoles' => $accountRoles,
                         'prefix' => 'employee-edit-'.$employee->id,
                     ])
                 </x-modal-form>
@@ -176,6 +186,7 @@
                     'departments' => $departments,
                     'positions' => $positions,
                     'managers' => $managers,
+                    'accountRoles' => $accountRoles,
                     'prefix' => 'employee-edit-'.$editItem->id,
                 ])
             </x-modal-form>

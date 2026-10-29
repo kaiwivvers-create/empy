@@ -3,12 +3,6 @@
 @section('title', __('app.users.title'))
 
 @section('content')
-    @php
-        $roleOptions = auth()->user()->isSuperAdmin()
-            ? ['super_admin', 'admin', 'manager', 'employee']
-            : ['admin', 'manager', 'employee'];
-    @endphp
-
     <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('app.users.title') }}</h2>
@@ -32,8 +26,8 @@
                 <div class="flex gap-2">
                     <select name="role" class="input">
                         <option value="">{{ __('app.common.all') }} · {{ __('app.users.role') }}</option>
-                        @foreach ($roleOptions as $role)
-                            <option value="{{ $role }}" @selected(($filters['role'] ?? '') === $role)>{{ __('app.roles.'.$role) }}</option>
+                        @foreach ($roleOptions as $role => $label)
+                            <option value="{{ $role }}" @selected(($filters['role'] ?? '') === $role)>{{ $label }}</option>
                         @endforeach
                     </select>
                     <button type="submit" class="btn-secondary shrink-0">{{ __('app.actions.filter') }}</button>
@@ -42,7 +36,15 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full min-w-[62rem]">
+                <colgroup>
+                    <col>
+                    <col class="w-[14rem]">
+                    <col class="w-[9rem]">
+                    <col class="w-[12rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[10rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th>{{ __('app.common.name') }}</th>
@@ -59,7 +61,7 @@
                             <td>
                                 <p class="font-semibold text-slate-800">{{ $user->name }}</p>
                                 @if ($user->id === auth()->id())
-                                    <p class="text-xs text-indigo-500">({{ __('app.roles.'.$user->role) }} — {{ __('app.auth.welcome_back') }})</p>
+                                    <p class="text-xs text-indigo-500">({{ $user->roleLabel() }} — {{ __('app.auth.welcome_back') }})</p>
                                 @endif
                             </td>
                             <td class="text-slate-500">{{ $user->email }}</td>

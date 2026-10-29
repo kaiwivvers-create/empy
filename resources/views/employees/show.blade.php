@@ -87,7 +87,13 @@
                     <span class="text-xs text-slate-400">{{ $evaluations->count() }} {{ __('app.nav.evaluations') }}</span>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="table-stable w-full min-w-[38rem]">
+                        <colgroup>
+                            <col>
+                            <col class="w-[7rem]">
+                            <col class="w-[7rem]">
+                            <col class="w-[9rem]">
+                        </colgroup>
                         <thead class="table-head">
                             <tr>
                                 <th>{{ __('app.common.period') }}</th>
@@ -248,6 +254,7 @@
                 'departments' => $departments,
                 'positions' => $positions,
                 'managers' => $managers,
+                'accountRoles' => $accountRoles,
                 'prefix' => 'employee-show-edit',
             ])
         </x-modal-form>

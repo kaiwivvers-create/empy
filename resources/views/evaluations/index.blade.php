@@ -14,10 +14,16 @@
             <p class="mt-1 text-sm text-slate-500">{{ __('app.evaluations.subtitle') }}</p>
         </div>
         @if ($canCreate)
-            <button type="button" class="btn-primary" data-modal-open="evaluation-create">
-                <svg class="h-4 w-4"><use href="#i-plus"/></svg>
-                {{ __('app.evaluations.add') }}
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('evaluations.team') }}" class="btn-secondary">
+                    <svg class="h-4 w-4"><use href="#i-users"/></svg>
+                    {{ __('app.team.title') }}
+                </a>
+                <button type="button" class="btn-primary" data-modal-open="evaluation-create">
+                    <svg class="h-4 w-4"><use href="#i-plus"/></svg>
+                    {{ __('app.evaluations.add') }}
+                </button>
+            </div>
         @endif
     </div>
 
@@ -56,7 +62,17 @@
         @endif
 
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full {{ $user->isEmployee() ? 'min-w-[52rem]' : 'min-w-[62rem]' }}">
+                <colgroup>
+                    <col>
+                    <col class="w-[11rem]">
+                    @unless ($user->isEmployee())
+                        <col class="w-[11rem]">
+                    @endunless
+                    <col class="w-[7rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[11rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th>{{ __('app.common.employee') }}</th>
@@ -103,6 +119,16 @@
                             <td>
                                 <div class="flex items-center justify-end gap-1">
                                     <a href="{{ route('evaluations.show', $evaluation) }}" class="btn-ghost">{{ __('app.actions.detail') }}</a>
+                                    @if ($evaluation->isSubmitted() && $user->isAdmin())
+                                        <form method="POST" action="{{ route('evaluations.reopen', $evaluation) }}"
+                                              onsubmit="return confirm('{{ __('app.evaluations.confirm_reopen') }}')">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="{{ __('app.evaluations.reopen_hint') }}">
+                                                <svg class="h-4 w-4"><use href="#i-pencil"/></svg>
+                                            </button>
+                                        </form>
+                                    @endif
                                     @if (! $evaluation->isSubmitted() && ($user->isAdmin() || $evaluation->evaluator_id === $user->id))
                                         <a href="{{ route('evaluations.edit', $evaluation) }}" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="{{ __('app.actions.edit') }}">
                                             <svg class="h-4 w-4"><use href="#i-pencil"/></svg>

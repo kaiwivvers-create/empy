@@ -37,7 +37,15 @@
                     </form>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="table-stable w-full {{ $canManage ? 'min-w-[44rem]' : 'min-w-[36rem]' }}">
+                        <colgroup>
+                            <col>
+                            <col class="w-[11rem]">
+                            <col class="w-[11rem]">
+                            @if ($canManage)
+                                <col class="w-[8rem]">
+                            @endif
+                        </colgroup>
                         <thead class="table-head">
                             <tr>
                                 <th>{{ __('app.common.name') }}</th>

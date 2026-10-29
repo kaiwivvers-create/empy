@@ -127,7 +127,14 @@
                 <span class="text-xs text-slate-400">{{ $period?->name }}</span>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="table-stable w-full min-w-[46rem]">
+                    <colgroup>
+                        <col class="w-[4rem]">
+                        <col>
+                        <col class="w-[12rem]">
+                        <col class="w-[7rem]">
+                        <col class="w-[7rem]">
+                    </colgroup>
                     <thead class="table-head">
                         <tr>
                             <th class="w-14 text-center">#</th>
@@ -218,7 +225,12 @@
                 <h3 class="font-bold text-slate-900">{{ __('app.reports.by_department') }}</h3>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="table-stable w-full min-w-[34rem]">
+                    <colgroup>
+                        <col>
+                        <col class="w-[9rem]">
+                        <col class="w-[9rem]">
+                    </colgroup>
                     <thead class="table-head">
                         <tr>
                             <th>{{ __('app.common.department') }}</th>
@@ -247,7 +259,12 @@
                 <span class="badge-amber">{{ $notEvaluated->count() }}</span>
             </div>
             <div class="max-h-80 overflow-y-auto">
-                <table class="w-full">
+                <table class="table-stable w-full min-w-[40rem]">
+                    <colgroup>
+                        <col>
+                        <col class="w-[12rem]">
+                        <col class="w-[10rem]">
+                    </colgroup>
                     <thead class="table-head">
                         <tr>
                             <th>{{ __('app.common.name') }}</th>

@@ -72,8 +72,11 @@
             </div>
 
             <div class="mb-6 flex items-start justify-between gap-4">
-                <h2 class="text-4xl font-extrabold tracking-tight text-slate-900">{{ __('app.auth.log_in_or_sign_up') }}</h2>
-                <div class="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                <div class="min-w-0">
+                    <h2 class="text-4xl font-extrabold tracking-tight text-slate-900">{{ __('app.auth.log_in_or_sign_up') }}</h2>
+                    <p class="mt-2 max-w-sm text-base text-slate-500">{{ __('app.auth.sign_in_subtitle') }}</p>
+                </div>
+                <div class="flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
                     <a href="{{ route('locale.switch', 'id') }}" class="rounded-lg px-2 py-1 text-xs font-bold {{ app()->getLocale() === 'id' ? 'bg-indigo-600 text-white' : 'text-slate-500' }}">ID</a>
                     <a href="{{ route('locale.switch', 'en') }}" class="rounded-lg px-2 py-1 text-xs font-bold {{ app()->getLocale() === 'en' ? 'bg-indigo-600 text-white' : 'text-slate-500' }}">EN</a>
                 </div>
@@ -103,10 +106,97 @@
                     <input type="checkbox" name="remember" value="1" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
                     {{ __('app.auth.remember') }}
                 </label>
+
+                <div data-captcha>
+                    @if ($turnstileEnabled)
+                        <div data-turnstile-wrap>
+                            <div class="cf-turnstile" data-sitekey="{{ config('services.turnstile.site_key') }}" data-theme="light"></div>
+                        </div>
+                    @endif
+
+                    <div data-math-wrap class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-slate-500">{{ __('app.auth.captcha') }}</p>
+                                <p data-math-question class="mt-0.5 text-lg font-extrabold tracking-wide text-slate-800">{{ $captcha['question'] }}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input name="math_answer" data-math-answer inputmode="numeric" autocomplete="off"
+                                       class="input !w-20 !py-2 text-center" placeholder="?"
+                                       aria-label="{{ __('app.auth.captcha') }}">
+                                <button type="button" data-math-refresh class="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-indigo-600" title="{{ __('app.auth.captcha_refresh') }}">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <input type="hidden" name="math_token" value="{{ $captcha['token'] }}" data-math-token>
+                        <p class="mt-1.5 text-[11px] leading-relaxed text-slate-400">{{ __('app.auth.captcha_hint') }}</p>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-primary w-full">{{ __('app.auth.sign_in') }}</button>
             </form>
         </div>
     </div>
 </div>
+<script>
+    (() => {
+        const siteKey = @json(config('services.turnstile.site_key'));
+        const mathWrap = document.querySelector('[data-math-wrap]');
+        const turnstileWrap = document.querySelector('[data-turnstile-wrap]');
+        const answer = document.querySelector('[data-math-answer]');
+        const token = document.querySelector('[data-math-token]');
+        const question = document.querySelector('[data-math-question]');
+        const refresh = document.querySelector('[data-math-refresh]');
+
+        if (!mathWrap || !answer || !token || !question) {
+            return;
+        }
+
+        const fetchChallenge = async () => {
+            try {
+                const response = await fetch('{{ route('captcha.math') }}', { headers: { Accept: 'application/json' } });
+                const data = await response.json();
+                question.textContent = data.question;
+                token.value = data.token;
+                answer.value = '';
+            } catch (error) {
+                // Offline and the challenge could not refresh; keep the current one.
+            }
+        };
+
+        const useMath = () => {
+            turnstileWrap?.classList.add('hidden');
+            mathWrap.classList.remove('hidden');
+            answer.disabled = false;
+            fetchChallenge();
+        };
+
+        const useTurnstile = () => {
+            if (!siteKey || !turnstileWrap) {
+                useMath();
+                return;
+            }
+
+            mathWrap.classList.add('hidden');
+            turnstileWrap.classList.remove('hidden');
+            answer.disabled = true;
+        };
+
+        refresh?.addEventListener('click', fetchChallenge);
+        window.addEventListener('offline', useMath);
+
+        if (!siteKey || !navigator.onLine) {
+            useMath();
+        } else {
+            useTurnstile();
+        }
+    })();
+</script>
+
+@if ($turnstileEnabled)
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer
+            onerror="document.querySelector('[data-turnstile-wrap]')?.classList.add('hidden'); document.querySelector('[data-math-wrap]')?.classList.remove('hidden'); document.querySelector('[data-math-answer]').disabled = false;"></script>
+@endif
 </body>
 </html>

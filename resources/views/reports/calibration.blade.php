@@ -34,7 +34,15 @@
 
     <div class="card">
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full min-w-[60rem]">
+                <colgroup>
+                    <col>
+                    <col class="w-[7rem]">
+                    <col class="w-[7rem]">
+                    <col class="w-[7rem]">
+                    <col class="w-[7rem]">
+                    <col class="w-[16rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th>{{ __('app.reports.evaluator') }}</th>

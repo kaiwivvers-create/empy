@@ -1,9 +1,8 @@
 @php
     $prefix = $prefix ?? 'user';
     $isEdit = $user->exists;
-    $roleOptions = $roleOptions ?? (auth()->user()->isSuperAdmin()
-        ? ['super_admin', 'admin', 'manager', 'employee']
-        : ['admin', 'manager', 'employee']);
+    $roleOptions = $roleOptions ?? collect(['admin', 'manager', 'employee'])
+        ->mapWithKeys(fn (string $role) => [$role => __('app.roles.'.$role)])->all();
 @endphp
 
 <div class="grid gap-4 sm:grid-cols-2">
@@ -20,8 +19,8 @@
     <div>
         <label class="label" for="{{ $prefix }}-role">{{ __('app.users.role') }}</label>
         <select id="{{ $prefix }}-role" name="role" class="input">
-            @foreach ($roleOptions as $role)
-                <option value="{{ $role }}" @selected(old('role', $user->role ?? 'employee') === $role)>{{ __('app.roles.'.$role) }}</option>
+            @foreach ($roleOptions as $role => $label)
+                <option value="{{ $role }}" @selected(old('role', $user->role ?? 'employee') === $role)>{{ $label }}</option>
             @endforeach
         </select>
         @error('role') <p class="form-error">{{ $message }}</p> @enderror

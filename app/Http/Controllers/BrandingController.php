@@ -79,7 +79,7 @@ class BrandingController extends Controller
             ]);
         }
 
-        $path = 'branding/logo.jpg';
+        $path = 'branding/logo.png';
         Storage::disk('public')->put($path, $binary);
 
         return $path;

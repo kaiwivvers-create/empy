@@ -2,14 +2,13 @@
 
 namespace App\Support;
 
+use App\Models\Role;
 use App\Models\RolePermission;
+use App\Models\Setting;
 use App\Models\User;
 
 class PageAccess
 {
-    /** Roles shown in the access matrix. Super admins are intentionally excluded. */
-    public const MATRIX_ROLES = ['admin', 'manager', 'employee'];
-
     /**
      * Pages that can be granted to roles.
      *
@@ -29,16 +28,30 @@ class PageAccess
             'periods' => ['group' => 'evaluation_setup', 'label' => 'app.nav.periods'],
             'criteria' => ['group' => 'evaluation_setup', 'label' => 'app.nav.criteria'],
             'users' => ['group' => 'administration', 'label' => 'app.users.title'],
+            'roles_page' => ['group' => 'administration', 'label' => 'app.roles_page.title'],
             'activity' => ['group' => 'administration', 'label' => 'app.activity.title'],
         ];
     }
 
     /**
-     * Default access used until a super admin saves the matrix.
+     * Roles shown in the access matrix, excluding the super admin.
+     *
+     * @return list<string>
+     */
+    public static function matrixRoles(): array
+    {
+        return array_values(array_filter(
+            Role::allCached()->pluck('name')->all(),
+            fn (string $role) => $role !== User::ROLE_SUPER_ADMIN,
+        ));
+    }
+
+    /**
+     * Factory defaults used when the super admin has not customised them.
      *
      * @return array<string, array<string, bool>>
      */
-    public static function defaults(): array
+    public static function builtInDefaults(): array
     {
         return [
             'dashboard' => ['admin' => true, 'manager' => true, 'employee' => true],
@@ -47,13 +60,106 @@ class PageAccess
             'feedback' => ['admin' => true, 'manager' => true, 'employee' => true],
             'reports' => ['admin' => true, 'manager' => true, 'employee' => false],
             'organization' => ['admin' => true, 'manager' => true, 'employee' => false],
-            'departments' => ['admin' => true, 'manager' => false, 'employee' => false],
-            'positions' => ['admin' => true, 'manager' => false, 'employee' => false],
+            'departments' => ['admin' => true, 'manager' => true, 'employee' => false],
+            'positions' => ['admin' => true, 'manager' => true, 'employee' => false],
             'periods' => ['admin' => true, 'manager' => false, 'employee' => false],
             'criteria' => ['admin' => true, 'manager' => false, 'employee' => false],
             'users' => ['admin' => true, 'manager' => false, 'employee' => false],
+            'roles_page' => ['admin' => false, 'manager' => false, 'employee' => false],
             'activity' => ['admin' => true, 'manager' => false, 'employee' => false],
         ];
+    }
+
+    /**
+     * Current defaults (factory values merged with the super admin's edits).
+     *
+     * @return array<string, array<string, bool>>
+     */
+    public static function defaults(): array
+    {
+        $defaults = static::builtInDefaults();
+        $stored = json_decode((string) Setting::get('access_defaults'), true);
+
+        if (is_array($stored)) {
+            foreach (array_keys(static::pages()) as $page) {
+                if (! isset($stored[$page]) || ! is_array($stored[$page])) {
+                    continue;
+                }
+
+                foreach ($stored[$page] as $role => $allowed) {
+                    $defaults[$page][$role] = (bool) $allowed;
+                }
+            }
+        }
+
+        foreach (static::matrixRoles() as $role) {
+            foreach (array_keys(static::pages()) as $page) {
+                $defaults[$page][$role] ??= false;
+            }
+        }
+
+        return $defaults;
+    }
+
+    /**
+     * Persist a custom default matrix.
+     *
+     * @param  array<string, array<string, mixed>>  $permissions
+     */
+    public static function saveDefaults(array $permissions): void
+    {
+        $matrix = [];
+
+        foreach (array_keys(static::pages()) as $page) {
+            foreach (static::matrixRoles() as $role) {
+                $matrix[$page][$role] = (bool) ($permissions[$page][$role] ?? false);
+            }
+        }
+
+        Setting::put('access_defaults', json_encode($matrix));
+    }
+
+    /**
+     * Remove every stored override so the current defaults apply again.
+     */
+    public static function resetToDefaults(): void
+    {
+        RolePermission::query()->delete();
+    }
+
+    /**
+     * Give a freshly created role the defaults of a template role.
+     */
+    public static function registerRole(Role $role, string $template): void
+    {
+        $defaults = static::defaults();
+        $matrix = [];
+
+        foreach (array_keys(static::pages()) as $page) {
+            foreach (static::matrixRoles() as $name) {
+                $matrix[$page][$name] = $name === $role->name
+                    ? (bool) ($defaults[$page][$template] ?? false)
+                    : (bool) ($defaults[$page][$name] ?? false);
+            }
+        }
+
+        Setting::put('access_defaults', json_encode($matrix));
+    }
+
+    /**
+     * Drop a deleted role from the stored defaults.
+     */
+    public static function forgetRole(string $name): void
+    {
+        $matrix = static::defaults();
+        $payload = [];
+
+        foreach ($matrix as $page => $roles) {
+            unset($roles[$name]);
+            $payload[$page] = $roles;
+        }
+
+        Setting::put('access_defaults', json_encode($payload));
     }
 
     public static function allows(?User $user, string $page): bool
@@ -83,7 +189,7 @@ class PageAccess
     }
 
     /**
-     * Full matrix for the access page.
+     * Full current matrix for the access page.
      *
      * @return array<string, array<string, bool>>
      */
@@ -91,7 +197,7 @@ class PageAccess
     {
         $matrix = [];
 
-        foreach (static::MATRIX_ROLES as $role) {
+        foreach (static::matrixRoles() as $role) {
             foreach (array_keys(static::pages()) as $page) {
                 $matrix[$role][$page] = static::allows(
                     new User(['role' => $role]),
@@ -124,6 +230,7 @@ class PageAccess
             str_starts_with($routeName, 'periods.') => 'periods',
             str_starts_with($routeName, 'criteria.') => 'criteria',
             str_starts_with($routeName, 'users.') => 'users',
+            str_starts_with($routeName, 'roles.') => 'roles_page',
             str_starts_with($routeName, 'activity.') => 'activity',
             default => null,
         };
@@ -144,6 +251,7 @@ class PageAccess
             'periods' => 'periods.index',
             'criteria' => 'criteria.index',
             'users' => 'users.index',
+            'roles_page' => 'roles.index',
             'activity' => 'activity.index',
         ];
 

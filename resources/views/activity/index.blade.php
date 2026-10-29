@@ -40,7 +40,15 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="table-stable w-full min-w-[58rem]">
+                <colgroup>
+                    <col class="w-[9.5rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[7.5rem]">
+                    <col>
+                    <col class="w-[17rem]">
+                    <col class="w-[11rem]">
+                </colgroup>
                 <thead class="table-head">
                     <tr>
                         <th>{{ __('app.activity.when') }}</th>

@@ -2,6 +2,8 @@
     $prefix = $prefix ?? 'employee';
     $isEdit = $employee->exists;
     $linkedUser = $employee->user;
+    $accountRoles = $accountRoles ?? collect(['employee', 'manager'])
+        ->mapWithKeys(fn (string $role) => [$role => __('app.roles.'.$role)])->all();
 @endphp
 
 <div class="grid gap-5 lg:grid-cols-3">
@@ -132,8 +134,9 @@
                 <div>
                     <label class="label" for="{{ $prefix }}-account-role">{{ __('app.employees.account_role') }}</label>
                     <select id="{{ $prefix }}-account-role" name="account_role" class="input">
-                        <option value="employee" @selected(old('account_role', $linkedUser?->role ?? 'employee') === 'employee')>{{ __('app.roles.employee') }}</option>
-                        <option value="manager" @selected(old('account_role', $linkedUser?->role) === 'manager')>{{ __('app.roles.manager') }}</option>
+                        @foreach ($accountRoles as $role => $label)
+                            <option value="{{ $role }}" @selected(old('account_role', $linkedUser?->role ?? 'employee') === $role)>{{ $label }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>

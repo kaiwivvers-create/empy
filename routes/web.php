@@ -4,7 +4,9 @@ use App\Http\Controllers\AccessController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrandingController;
+use App\Http\Controllers\CaptchaController;
 use App\Http\Controllers\CriterionController;
+use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
@@ -19,7 +21,9 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PeerFeedbackController;
 use App\Http\Controllers\PositionController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Support\PageAccess;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +37,7 @@ Route::get('/', function () {
 });
 
 Route::get('/language/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
+Route::get('/captcha/math', [CaptchaController::class, 'math'])->name('captcha.math');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -89,8 +94,22 @@ Route::middleware(['auth', 'page.access'])->group(function () {
     Route::middleware('role:super_admin')->group(function () {
         Route::get('/settings/access', [AccessController::class, 'index'])->name('access.index');
         Route::put('/settings/access', [AccessController::class, 'update'])->name('access.update');
+        Route::put('/settings/access/defaults', [AccessController::class, 'updateDefaults'])->name('access.defaults');
+        Route::post('/settings/access/reset', [AccessController::class, 'reset'])->name('access.reset');
+
+        Route::get('/settings/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::post('/settings/roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::put('/settings/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/settings/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+
         Route::get('/settings/branding', [BrandingController::class, 'edit'])->name('branding.edit');
         Route::post('/settings/branding', [BrandingController::class, 'update'])->name('branding.update');
+
+        Route::get('/settings/database', [DatabaseController::class, 'index'])->name('database.index');
+        Route::get('/settings/database/export', [DatabaseController::class, 'export'])->name('database.export');
+        Route::post('/settings/database/import', [DatabaseController::class, 'import'])->name('database.import');
+        Route::get('/settings/database/backups/{backup}/download', [DatabaseController::class, 'download'])->name('database.backup.download');
+        Route::delete('/settings/database/backups/{backup}', [DatabaseController::class, 'destroy'])->name('database.backup.destroy');
     });
 
     Route::get('/org-chart', [OrganizationChartController::class, 'index'])
@@ -98,12 +117,14 @@ Route::middleware(['auth', 'page.access'])->group(function () {
         ->name('organization.chart');
 
     Route::get('/evaluations', [EvaluationController::class, 'index'])->name('evaluations.index');
+    Route::get('/evaluations/team', [EvaluationController::class, 'team'])->middleware('role:admin,manager')->name('evaluations.team');
     Route::get('/evaluations/create', [EvaluationController::class, 'create'])->middleware('role:admin,manager')->name('evaluations.create');
     Route::post('/evaluations', [EvaluationController::class, 'store'])->middleware('role:admin,manager')->name('evaluations.store');
     Route::get('/evaluations/{evaluation}', [EvaluationController::class, 'show'])->name('evaluations.show');
     Route::get('/evaluations/{evaluation}/pdf', [EvaluationController::class, 'pdf'])->name('evaluations.pdf');
     Route::get('/evaluations/{evaluation}/edit', [EvaluationController::class, 'edit'])->name('evaluations.edit');
     Route::put('/evaluations/{evaluation}', [EvaluationController::class, 'update'])->name('evaluations.update');
+    Route::patch('/evaluations/{evaluation}/reopen', [EvaluationController::class, 'reopen'])->middleware('role:admin')->name('evaluations.reopen');
     Route::delete('/evaluations/{evaluation}', [EvaluationController::class, 'destroy'])->middleware('role:admin')->name('evaluations.destroy');
 
     Route::post('/evaluations/{evaluation}/reviewers', [PeerFeedbackController::class, 'store'])->name('evaluations.reviewers.store');
@@ -118,6 +139,7 @@ Route::middleware(['auth', 'page.access'])->group(function () {
 
     Route::middleware('role:admin,manager')->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/progress', [ProgressController::class, 'index'])->name('reports.progress');
         Route::get('/reports/calibration', [ReportController::class, 'calibration'])->name('reports.calibration');
         Route::get('/reports/export/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
         Route::get('/reports/export/excel', [ReportController::class, 'excel'])->name('reports.excel');

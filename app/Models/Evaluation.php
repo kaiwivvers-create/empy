@@ -18,6 +18,7 @@ class Evaluation extends Model
         'final_score',
         'manager_score',
         'status',
+        'purpose',
         'notes',
         'submitted_at',
     ];

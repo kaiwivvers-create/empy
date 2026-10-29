@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -27,9 +28,15 @@ class UserController extends Controller
 
         [$openModal, $editItem] = $this->modalState($request);
 
+        $roles = Role::query()
+            ->when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('name', '!=', User::ROLE_SUPER_ADMIN))
+            ->orderBy('id')
+            ->get();
+
         return view('users.index', [
             'users' => $users,
             'filters' => $request->only('search', 'role'),
+            'roleOptions' => $roles->mapWithKeys(fn (Role $role) => [$role->name => $role->displayLabel()]),
             'openModal' => $openModal,
             'editItem' => $editItem,
         ]);
@@ -140,9 +147,13 @@ class UserController extends Controller
      */
     private function roleRule(Request $request): array
     {
-        return $request->user()->isSuperAdmin()
-            ? ['in:admin,manager,employee,super_admin']
-            : ['in:admin,manager,employee'];
+        $rules = ['required', Rule::exists('roles', 'name')];
+
+        if (! $request->user()->isSuperAdmin()) {
+            $rules[] = 'not_in:'.User::ROLE_SUPER_ADMIN;
+        }
+
+        return $rules;
     }
 
     private function authorizeUser(Request $request, User $user): void

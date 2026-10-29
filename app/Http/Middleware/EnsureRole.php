@@ -16,7 +16,13 @@ class EnsureRole
             return $next($request);
         }
 
-        if (! $user || ! in_array($user->role, $roles, true)) {
+        // Custom roles inherit the capabilities of their base level.
+        $allowed = $user && (
+            in_array($user->role, $roles, true)
+            || in_array($user->baseRole(), $roles, true)
+        );
+
+        if (! $allowed) {
             // Do not reveal that super-admin-only pages exist.
             abort(in_array('super_admin', $roles, true) ? 404 : 403, __('app.common.no_access'));
         }

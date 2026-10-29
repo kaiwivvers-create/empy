@@ -9,6 +9,9 @@
 
 @php
     $canManage = auth()->user()->isAdmin() || $evaluation->evaluator_id === auth()->id();
+    $canEditPeriod = auth()->user()->isAdmin()
+        && \App\Support\PageAccess::allows(auth()->user(), 'periods')
+        && $evaluation->period;
 @endphp
 
 @section('content')
@@ -24,6 +27,17 @@
                     <svg class="h-4 w-4"><use href="#i-download"/></svg>
                     {{ __('app.evaluations.pdf') }}
                 </a>
+            @endif
+            @if ($submitted && auth()->user()->isAdmin())
+                <form method="POST" action="{{ route('evaluations.reopen', $evaluation) }}"
+                      onsubmit="return confirm('{{ __('app.evaluations.confirm_reopen') }}')">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="btn-secondary" title="{{ __('app.evaluations.reopen_hint') }}">
+                        <svg class="h-4 w-4"><use href="#i-pencil"/></svg>
+                        {{ __('app.evaluations.reopen') }}
+                    </button>
+                </form>
             @endif
             @if (! $submitted && $canManage)
                 <a href="{{ route('evaluations.edit', $evaluation) }}" class="btn-primary">
@@ -81,7 +95,13 @@
                     <span class="text-xs text-slate-400">{{ __('app.evaluations.scale_hint') }}</span>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="table-stable w-full min-w-[50rem]">
+                        <colgroup>
+                            <col>
+                            <col class="w-[7rem]">
+                            <col class="w-[7rem]">
+                            <col class="w-[18rem]">
+                        </colgroup>
                         <thead class="table-head">
                             <tr>
                                 <th>{{ __('app.criteria.title') }}</th>
@@ -358,6 +378,54 @@
                     @endforeach
                 </div>
             </div>
+
+            @if ($evaluation->period)
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-bold text-slate-900">{{ __('app.evaluations.period_section') }}</h3>
+                        @if ($canEditPeriod)
+                            <button type="button" class="btn-ghost" data-modal-open="evaluation-period-edit">
+                                <svg class="h-3.5 w-3.5"><use href="#i-pencil"/></svg>
+                                {{ __('app.actions.edit') }}
+                            </button>
+                        @endif
+                    </div>
+                    <dl class="space-y-2.5 p-5 text-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-slate-500">{{ __('app.common.name') }}</dt>
+                            <dd class="text-right font-semibold text-slate-800">{{ $evaluation->period->name }}</dd>
+                        </div>
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-slate-500">{{ __('app.periods.type') }}</dt>
+                            <dd class="text-right font-medium text-slate-700">{{ __('app.periods.types.'.$evaluation->period->type) }}</dd>
+                        </div>
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-slate-500">{{ __('app.periods.range') }}</dt>
+                            <dd class="text-right font-medium text-slate-700">
+                                {{ $evaluation->period->start_date?->format('d M Y') }}<br>{{ $evaluation->period->end_date?->format('d M Y') }}
+                            </dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <dt class="text-slate-500">{{ __('app.common.status') }}</dt>
+                            <dd>
+                                @if ($evaluation->period->status === 'active')
+                                    <span class="badge-green">{{ __('app.periods.statuses.active') }}</span>
+                                @elseif ($evaluation->period->status === 'closed')
+                                    <span class="badge-slate">{{ __('app.periods.statuses.closed') }}</span>
+                                @else
+                                    <span class="badge-amber">{{ __('app.periods.statuses.draft') }}</span>
+                                @endif
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            @endif
         </div>
     </div>
+
+    @if ($canEditPeriod)
+        <x-modal-form id="evaluation-period-edit" :title="__('app.periods.edit_title')" :subtitle="__('app.evaluations.period_section')" :action="route('periods.update', $evaluation->period)" method="PUT">
+            @include('periods._fields', ['period' => $evaluation->period, 'prefix' => 'evaluation-period-edit'])
+        </x-modal-form>
+    @endif
 @endsection

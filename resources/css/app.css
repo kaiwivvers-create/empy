@@ -16,6 +16,54 @@
         @apply bg-slate-100 text-slate-800 antialiased;
     }
 
+    html {
+        /* Keep the page from shifting when a long page starts to scroll. */
+        scrollbar-gutter: stable;
+    }
+
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-slate-300) transparent;
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        border: 2px solid transparent;
+        border-radius: 9999px;
+        background-color: var(--color-slate-300);
+        background-clip: content-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-slate-400);
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    /* The dark sidebar needs a lighter thumb to stay visible. */
+    #sidebar,
+    #sidebar * {
+        scrollbar-color: var(--color-slate-700) transparent;
+    }
+
+    #sidebar ::-webkit-scrollbar-thumb {
+        background-color: var(--color-slate-700);
+    }
+
+    #sidebar ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-slate-500);
+    }
+
     [x-cloak] {
         display: none !important;
     }
@@ -100,6 +148,16 @@
 
     .table-row td {
         @apply px-5 py-3.5 align-middle;
+    }
+
+    /* Fixed layout: expanding a row never re-flows the other columns. */
+    .table-stable {
+        table-layout: fixed;
+    }
+
+    .table-stable th,
+    .table-stable td {
+        overflow-wrap: anywhere;
     }
 
     .stat-card {
@@ -222,6 +280,65 @@
 .modal[data-open="true"] .modal-panel {
     opacity: 1;
     transform: translateY(0) scale(1);
+}
+
+.drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.drawer[data-open="true"] {
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgb(2 6 23 / 0.55);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.drawer[data-open="true"] .drawer-backdrop {
+    opacity: 1;
+}
+
+.drawer-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    height: 100%;
+    width: 100%;
+    max-width: 34rem;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: -24px 0 50px -12px rgb(0 0 0 / 0.35);
+    transform: translateX(102%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawer[data-open="true"] .drawer-panel {
+    transform: translateX(0);
+}
+
+body.drawer-open {
+    overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drawer-panel,
+    .drawer-backdrop,
+    .modal-panel,
+    .modal-backdrop {
+        transition: none;
+    }
 }
 
 @media print {
