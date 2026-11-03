@@ -10,6 +10,10 @@ class Captcha
 {
     public const SESSION_KEY = 'math_captcha';
 
+    public const PHYSICS_SESSION_KEY = 'physics_captcha';
+
+    public const TYPES = ['math', 'physics'];
+
     public static function turnstileEnabled(): bool
     {
         return filled(config('services.turnstile.site_key'))
@@ -17,11 +21,32 @@ class Captcha
     }
 
     /**
-     * Build a fresh arithmetic challenge and remember the answer in the session.
+     * Build a fresh local challenge and remember the answer in the session.
      *
-     * @return array{token: string, question: string}
+     * @return array{type: string, token: string, question: string}
      */
-    public static function challenge(): array
+    public static function challenge(string $type = 'math'): array
+    {
+        return $type === 'physics' ? static::physicsChallenge() : static::mathChallenge();
+    }
+
+    /**
+     * Both local challenges, so the login page can offer a choice.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function challenges(): array
+    {
+        return [
+            'math' => static::mathChallenge(),
+            'physics' => static::physicsChallenge(),
+        ];
+    }
+
+    /**
+     * @return array{type: string, token: string, question: string}
+     */
+    private static function mathChallenge(): array
     {
         $left = random_int(2, 9);
         $right = random_int(2, 9);
@@ -36,32 +61,66 @@ class Captcha
         $token = Str::random(32);
 
         session([static::SESSION_KEY => [
+            'type' => 'math',
             'token' => $token,
             'answer' => $answer,
             'expires_at' => now()->addMinutes(10)->timestamp,
         ]]);
 
         return [
+            'type' => 'math',
             'token' => $token,
             'question' => $left.' '.($subtract ? '−' : '+').' '.$right.' = ?',
         ];
     }
 
     /**
+     * @return array{type: string, token: string, topic: string, question: string, options: list<string>}
+     */
+    private static function physicsChallenge(): array
+    {
+        $question = PhysicsCaptcha::question();
+        $token = Str::random(32);
+
+        session([static::PHYSICS_SESSION_KEY => [
+            'type' => 'physics',
+            'token' => $token,
+            'answer' => $question['answer'],
+            'expires_at' => now()->addMinutes(10)->timestamp,
+        ]]);
+
+        return [
+            'type' => 'physics',
+            'token' => $token,
+            'topic' => __('app.auth.captcha_topics.'.$question['topic']),
+            'question' => $question['question'],
+            'options' => $question['options'],
+        ];
+    }
+
+    /**
      * Validate the submitted challenge. Returns an app.lang key on failure.
      *
-     * The math challenge is always accepted when submitted (it works offline).
-     * Turnstile is verified when it is configured and no math answer was posted.
+     * The selected math or physics challenge is always accepted offline.
+     * Turnstile is verified when it is configured and no local answer was posted.
      */
     public static function verify(Request $request): ?string
     {
-        $token = (string) $request->input('math_token', '');
-        $answer = $request->input('math_answer');
+        $type = (string) $request->input('captcha_type', 'math');
+        $type = in_array($type, static::TYPES, true) ? $type : 'math';
+
+        $token = (string) $request->input('captcha_token', '');
+        $answer = $request->input('captcha_answer');
 
         if ($token !== '' && $answer !== null && $answer !== '') {
-            $stored = $request->session()->pull(static::SESSION_KEY);
+            $sessionKey = $type === 'physics' ? static::PHYSICS_SESSION_KEY : static::SESSION_KEY;
+            $stored = $request->session()->pull($sessionKey);
 
-            if (! is_array($stored) || ! hash_equals((string) $stored['token'], $token)) {
+            if (! is_array($stored) || ($stored['type'] ?? null) !== $type) {
+                return 'app.auth.captcha_expired';
+            }
+
+            if (! hash_equals((string) $stored['token'], $token)) {
                 return 'app.auth.captcha_expired';
             }
 
@@ -69,7 +128,7 @@ class Captcha
                 return 'app.auth.captcha_expired';
             }
 
-            if ((string) (int) $answer !== (string) $stored['answer']) {
+            if (! hash_equals((string) $stored['answer'], (string) $answer)) {
                 return 'app.auth.captcha_failed';
             }
 

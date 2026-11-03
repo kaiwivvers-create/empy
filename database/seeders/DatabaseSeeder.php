@@ -158,6 +158,9 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
+        // Every employee gets a working login, not just the demo accounts.
+        $this->call(EmployeeAccountSeeder::class);
+
         $criteria = [
             ['name' => 'Discipline', 'description' => 'Attendance, punctuality, and compliance with company policy.', 'weight' => 25, 'sort_order' => 1],
             ['name' => 'Work Quality', 'description' => 'Accuracy, care, and quality of work output.', 'weight' => 25, 'sort_order' => 2],

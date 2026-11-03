@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Support\ActivityLogger;
+use App\Support\Organization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,9 @@ class DepartmentController extends Controller
 
         return view('departments.index', [
             'departments' => $departments,
-            'employees' => Employee::active()->with('position')->orderBy('name')->get(),
+            'employees' => Employee::active()->with(['position', 'headedDepartment', 'user'])->orderBy('name')->get()
+                ->filter(fn (Employee $employee) => $employee->isManagerAccount())
+                ->values(),
             'openModal' => $openModal,
             'editItem' => $editItem,
         ]);
@@ -35,9 +38,13 @@ class DepartmentController extends Controller
     {
         $department = Department::create($this->validated($request));
 
+        Organization::applyDepartmentHead($department);
+
         ActivityLogger::record('created', 'Department created: '.$department->name, $department);
 
-        return redirect()->route('departments.index')->with('success', __('app.departments.success_created'));
+        return redirect()
+            ->route($request->string('return_to')->toString() === 'chart' ? 'organization.chart' : 'departments.index')
+            ->with('success', __('app.departments.success_created'));
     }
 
     public function edit(Department $department): RedirectResponse
@@ -50,6 +57,8 @@ class DepartmentController extends Controller
         $before = $department->getAttributes();
 
         $department->update($this->validated($request, $department));
+
+        Organization::applyDepartmentHead($department);
 
         ActivityLogger::record(
             'updated',
@@ -80,7 +89,9 @@ class DepartmentController extends Controller
             'code' => ['required', 'string', 'max:30', Rule::unique('departments', 'code')->ignore($department)],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'head_id' => ['nullable', 'exists:employees,id'],
+            'head_id' => ['nullable', 'exists:employees,id', Rule::unique('departments', 'head_id')->ignore($department)],
+        ], [
+            'head_id.unique' => __('app.organization.head_taken'),
         ]);
     }
 

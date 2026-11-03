@@ -164,6 +164,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Tailwind's base styles cap images at max-width: 100%, which would
+        // squeeze the zoomed preview against the square viewport. The crop
+        // preview must keep its natural aspect ratio.
+        image.style.maxWidth = 'none';
+        image.style.maxHeight = 'none';
+
         const applyLabel = applyButton.textContent;
         const state = { width: 0, height: 0, zoom: 1, offsetX: 0, offsetY: 0 };
         let objectUrl = null;
@@ -277,24 +283,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentScale = scale();
             const viewWidth = viewport.clientWidth;
             const viewHeight = viewport.clientHeight;
+
+            // Instagram-style crop: always a square taken from the visible
+            // area, never stretched to fit it.
+            const cropSize = Math.min(viewWidth, viewHeight);
+            const square = Math.min(state.width, state.height, cropSize / currentScale);
             const left = (viewWidth - state.width * currentScale) / 2 + state.offsetX;
             const top = (viewHeight - state.height * currentScale) / 2 + state.offsetY;
-            const sourceSize = Math.min(viewWidth, viewHeight) / currentScale;
+            const sourceX = Math.min(Math.max(-left / currentScale, 0), state.width - square);
+            const sourceY = Math.min(Math.max(-top / currentScale, 0), state.height - square);
+            const output = 512;
 
             const canvas = document.createElement('canvas');
-            canvas.width = 400;
-            canvas.height = 400;
+            canvas.width = output;
+            canvas.height = output;
 
-            canvas.getContext('2d').drawImage(
+            const context = canvas.getContext('2d');
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = 'high';
+            context.drawImage(
                 image,
-                -left / currentScale,
-                -top / currentScale,
-                sourceSize,
-                sourceSize,
+                sourceX,
+                sourceY,
+                square,
+                square,
                 0,
                 0,
-                400,
-                400,
+                output,
+                output,
             );
 
             const dataUrl = canvas.toDataURL('image/png');

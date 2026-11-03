@@ -39,6 +39,11 @@ class EmployeeGoalController extends Controller
         $this->authorizeManage($request, $employee);
 
         $data = $this->validated($request);
+
+        if ($this->periodLocked($request, (int) $data['period_id'])) {
+            return back()->with('error', __('app.goals.period_locked'));
+        }
+
         $goal = $employee->goals()->create($data);
 
         ActivityLogger::record('created', 'KPI target added for '.$employee->name.': '.$data['title'], $goal);
@@ -53,8 +58,13 @@ class EmployeeGoalController extends Controller
         abort_unless($goal->employee_id === $employee->id, 404);
 
         $before = $goal->getAttributes();
+        $data = $this->validated($request);
 
-        $goal->update($this->validated($request));
+        if ($this->periodLocked($request, (int) $data['period_id'])) {
+            return back()->with('error', __('app.goals.period_locked'));
+        }
+
+        $goal->update($data);
 
         ActivityLogger::record(
             'updated',
@@ -71,6 +81,10 @@ class EmployeeGoalController extends Controller
     {
         $this->authorizeManage($request, $employee);
         abort_unless($goal->employee_id === $employee->id, 404);
+
+        if ($this->periodLocked($request, (int) $goal->period_id)) {
+            return back()->with('error', __('app.goals.period_locked'));
+        }
 
         ActivityLogger::record('deleted', 'KPI target deleted for '.$employee->name.': '.$goal->title, $goal);
 
@@ -103,6 +117,21 @@ class EmployeeGoalController extends Controller
         }
 
         abort(403, __('app.common.no_access'));
+    }
+
+    /**
+     * KPIs belong to a period, so they can only be changed while that period
+     * is inside its date range (admins can always correct history).
+     */
+    private function periodLocked(Request $request, int $periodId): bool
+    {
+        if ($request->user()->isAdmin()) {
+            return false;
+        }
+
+        $period = EvaluationPeriod::find($periodId);
+
+        return $period !== null && ! $period->isOpenForEditing();
     }
 
     private function canManage(Request $request, Employee $employee): bool

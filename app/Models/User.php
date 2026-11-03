@@ -106,11 +106,12 @@ class User extends Authenticatable
 
     public function avatarUrl(): ?string
     {
-        if ($this->avatar_path) {
-            return asset('storage/'.$this->avatar_path);
+        // The linked employee record is the source of truth for profile data.
+        if ($this->employee?->photo_path) {
+            return $this->employee->photoUrl();
         }
 
-        return $this->employee?->photoUrl();
+        return $this->avatar_path ? asset('storage/'.$this->avatar_path) : null;
     }
 
     public function avatarInitials(): string

@@ -18,9 +18,11 @@ use App\Http\Controllers\ImprovementPlanController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OrganizationChartController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\PasswordResetRequestController;
 use App\Http\Controllers\PeerFeedbackController;
 use App\Http\Controllers\PositionController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
@@ -33,19 +35,18 @@ Route::get('/', function () {
 
     return $user
         ? redirect()->route(PageAccess::homeRoute($user))
-        : redirect()->route('dashboard');
-});
+        : view('landing');
+})->name('landing');
 
 Route::get('/language/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
 Route::get('/captcha/math', [CaptchaController::class, 'math'])->name('captcha.math');
+Route::get('/captcha/physics', [CaptchaController::class, 'physics'])->name('captcha.physics');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.store');
     Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
-    Route::post('/forgot-password', [PasswordResetController::class, 'email'])->name('password.email');
-    Route::get('/reset-password/{token}', [PasswordResetController::class, 'reset'])->name('password.reset');
-    Route::post('/reset-password', [PasswordResetController::class, 'update'])->name('password.update');
+    Route::post('/forgot-password', [PasswordResetController::class, 'store'])->name('password.request.store');
 });
 
 Route::middleware(['auth', 'page.access'])->group(function () {
@@ -89,6 +90,10 @@ Route::middleware(['auth', 'page.access'])->group(function () {
         Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity.index');
         Route::patch('/activity-log/{log}/revert', [ActivityLogController::class, 'revert'])->name('activity.revert');
         Route::delete('/activity-log/{log}', [ActivityLogController::class, 'destroy'])->name('activity.destroy');
+
+        Route::get('/password-requests', [PasswordResetRequestController::class, 'index'])->name('password-requests.index');
+        Route::patch('/password-requests/{passwordRequest}/reset', [PasswordResetRequestController::class, 'reset'])->name('password-requests.reset');
+        Route::patch('/password-requests/{passwordRequest}/dismiss', [PasswordResetRequestController::class, 'dismiss'])->name('password-requests.dismiss');
     });
 
     Route::middleware('role:super_admin')->group(function () {
@@ -115,6 +120,13 @@ Route::middleware(['auth', 'page.access'])->group(function () {
     Route::get('/org-chart', [OrganizationChartController::class, 'index'])
         ->middleware('role:admin,manager')
         ->name('organization.chart');
+
+    Route::middleware('role:admin')->group(function () {
+        Route::patch('/org-chart/departments/{department}/head', [OrganizationChartController::class, 'updateHead'])
+            ->name('organization.departments.head');
+        Route::patch('/org-chart/employees/{employee}/manager', [OrganizationChartController::class, 'updateManager'])
+            ->name('organization.employees.manager');
+    });
 
     Route::get('/evaluations', [EvaluationController::class, 'index'])->name('evaluations.index');
     Route::get('/evaluations/team', [EvaluationController::class, 'team'])->middleware('role:admin,manager')->name('evaluations.team');

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
@@ -59,6 +60,12 @@ class Employee extends Model
         return $this->hasMany(self::class, 'manager_id');
     }
 
+    /** The department this employee leads, if any. */
+    public function headedDepartment(): HasOne
+    {
+        return $this->hasOne(Department::class, 'head_id');
+    }
+
     public function evaluations(): HasMany
     {
         return $this->hasMany(Evaluation::class);
@@ -99,6 +106,14 @@ class Employee extends Model
     public function isManagedBy(User $user): bool
     {
         return $user->isAdmin() || ($user->employee && $this->manager_id === $user->employee->id);
+    }
+
+    /** Whether the linked account is a leadership (manager or admin) account. */
+    public function isManagerAccount(): bool
+    {
+        $user = $this->user;
+
+        return $user !== null && ($user->isManager() || $user->isAdmin());
     }
 
     public function initials(): string

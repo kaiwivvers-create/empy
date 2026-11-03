@@ -8,10 +8,12 @@ use App\Models\Position;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\ActivityLogger;
+use App\Support\Organization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -76,7 +78,15 @@ class EmployeeController extends Controller
             ]);
         });
 
+        Organization::syncManagerWithDepartmentHead($created);
+
         ActivityLogger::record('created', 'Employee created: '.$created->name, $created);
+
+        if ($request->string('return_to')->toString() === 'chart') {
+            return redirect()
+                ->route('organization.chart')
+                ->with('success', __('app.employees.success_created'));
+        }
 
         return redirect()
             ->route('employees.show', $created)
@@ -135,12 +145,20 @@ class EmployeeController extends Controller
             ]);
         });
 
+        Organization::syncManagerWithDepartmentHead($employee);
+
         ActivityLogger::record(
             'updated',
             'Employee updated: '.$employee->name,
             $employee,
             ActivityLogger::changes($employee, $before),
         );
+
+        if ($request->string('return_to')->toString() === 'chart') {
+            return redirect()
+                ->route('organization.chart')
+                ->with('success', __('app.employees.success_updated'));
+        }
 
         return redirect()
             ->route('employees.show', $employee)
@@ -196,6 +214,7 @@ class EmployeeController extends Controller
             'account_password' => ['nullable', 'string', 'min:6'],
             'user_id' => ['nullable', 'exists:users,id'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'photo_data' => ['nullable', 'string'],
             'remove_photo' => ['nullable', 'boolean'],
         ]);
 
@@ -242,6 +261,11 @@ class EmployeeController extends Controller
         $linked = $employee?->user;
 
         if (! $email) {
+            // Even without a login email, keep the linked account name in sync.
+            if ($linked && ! $linked->isSuperAdmin() && $linked->name !== $data['name']) {
+                $linked->update(['name' => $data['name']]);
+            }
+
             return ['user_id' => $employee?->user_id];
         }
 
@@ -288,21 +312,83 @@ class EmployeeController extends Controller
 
     private function handlePhoto(Request $request, ?Employee $employee = null): ?string
     {
-        if ($request->boolean('remove_photo') && $employee?->photo_path) {
-            Storage::disk('public')->delete($employee->photo_path);
+        $previous = $employee?->photo_path;
+
+        if ($request->boolean('remove_photo') && $previous) {
+            Storage::disk('public')->delete($previous);
+            $this->clearLinkedAvatar($employee?->user, $previous);
 
             return null;
         }
 
-        if ($request->hasFile('photo')) {
-            if ($employee?->photo_path) {
-                Storage::disk('public')->delete($employee->photo_path);
+        if (filled($request->input('photo_data'))) {
+            if ($previous) {
+                Storage::disk('public')->delete($previous);
             }
+
+            $this->clearLinkedAvatar($employee?->user, $previous);
+
+            return $this->storeCroppedPhoto($request->string('photo_data')->toString());
+        }
+
+        if ($request->hasFile('photo')) {
+            if ($previous) {
+                Storage::disk('public')->delete($previous);
+            }
+
+            $this->clearLinkedAvatar($employee?->user, $previous);
 
             return $request->file('photo')->store('employees', 'public');
         }
 
-        return $employee?->photo_path;
+        return $previous;
+    }
+
+    /**
+     * Drop a now-redundant account avatar so the employee photo stays authoritative.
+     */
+    private function clearLinkedAvatar(?User $user, ?string $alreadyDeletedPath = null): void
+    {
+        if (! $user || ! $user->avatar_path) {
+            return;
+        }
+
+        if (! $alreadyDeletedPath || $user->avatar_path !== $alreadyDeletedPath) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $user->update(['avatar_path' => null]);
+    }
+
+    private function storeCroppedPhoto(string $dataUrl): string
+    {
+        if (! preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,/', $dataUrl, $matches)) {
+            throw ValidationException::withMessages([
+                'photo_data' => __('app.profile.invalid_image'),
+            ]);
+        }
+
+        $binary = base64_decode(substr($dataUrl, strlen($matches[0])), true);
+
+        if ($binary === false || strlen($binary) > 3 * 1024 * 1024) {
+            throw ValidationException::withMessages([
+                'photo_data' => __('app.profile.invalid_image'),
+            ]);
+        }
+
+        $size = @getimagesizefromstring($binary);
+
+        if ($size === false || ! in_array($size[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)) {
+            throw ValidationException::withMessages([
+                'photo_data' => __('app.profile.invalid_image'),
+            ]);
+        }
+
+        $path = 'employees/'.Str::random(40).'.png';
+
+        Storage::disk('public')->put($path, $binary);
+
+        return $path;
     }
 
     /**

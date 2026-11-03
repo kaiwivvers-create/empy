@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Auth\Events\PasswordReset;
+use App\Models\PasswordResetRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -19,11 +18,15 @@ class PasswordResetController extends Controller
         return view('auth.forgot-password');
     }
 
-    public function email(Request $request): RedirectResponse
+    /**
+     * Queue a reset request for an administrator instead of emailing a link.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        $key = 'password-reset:'.Str::lower($request->string('email')).'|'.$request->ip();
+        $email = Str::lower(trim($request->string('email')->toString()));
+        $key = 'password-request:'.$email.'|'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($key, 3)) {
             throw ValidationException::withMessages([
@@ -33,43 +36,30 @@ class PasswordResetController extends Controller
 
         RateLimiter::hit($key, 300);
 
-        $status = Password::sendResetLink($request->only('email'));
+        // Unknown or inactive accounts get the same confirmation so the page
+        // cannot be used to discover which emails exist.
+        $user = User::query()->whereRaw('lower(email) = ?', [$email])->first();
 
-        return $status === Password::RESET_LINK_SENT
-            ? back()->with('success', __('app.auth.reset_link_sent'))
-            : back()->withErrors(['email' => __($status)]);
-    }
+        if ($user && $user->is_active) {
+            $pending = PasswordResetRequest::query()
+                ->where('user_id', $user->id)
+                ->pending()
+                ->first();
 
-    public function reset(Request $request, string $token): View
-    {
-        return view('auth.reset-password', [
-            'token' => $token,
-            'email' => $request->string('email'),
-        ]);
-    }
-
-    public function update(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
-        $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) {
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                    'remember_token' => Str::random(60),
-                ])->save();
-
-                event(new PasswordReset($user));
+            if ($pending) {
+                $pending->update(['email' => $user->email, 'requested_at' => now()]);
+            } else {
+                PasswordResetRequest::create([
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'status' => PasswordResetRequest::STATUS_PENDING,
+                    'requested_at' => now(),
+                ]);
             }
-        );
+        }
 
-        return $status === Password::PASSWORD_RESET
-            ? redirect()->route('login')->with('success', __('app.auth.reset_success'))
-            : back()->withErrors(['email' => __($status)]);
+        return redirect()
+            ->route('password.request')
+            ->with('success', __('app.auth.request_submitted'));
     }
 }

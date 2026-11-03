@@ -46,9 +46,9 @@
                 <colgroup>
                     <col>
                     @foreach ($roles as $role)
-                        <col class="w-[7rem]">
+                        <col class="w-[10rem]">
                     @endforeach
-                    <col class="w-[9rem]">
+                    <col class="w-[10rem]">
                 </colgroup>
                 <thead class="table-head">
                     <tr>
@@ -111,7 +111,7 @@
                 <colgroup>
                     <col>
                     @foreach ($roles as $role)
-                        <col class="w-[7rem]">
+                        <col class="w-[10rem]">
                     @endforeach
                 </colgroup>
                 <thead class="table-head">

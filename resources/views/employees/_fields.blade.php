@@ -4,6 +4,7 @@
     $linkedUser = $employee->user;
     $accountRoles = $accountRoles ?? collect(['employee', 'manager'])
         ->mapWithKeys(fn (string $role) => [$role => __('app.roles.'.$role)])->all();
+    $accountPicker = $accountPicker ?? null;
 @endphp
 
 <div class="grid gap-5 lg:grid-cols-3">
@@ -14,27 +15,19 @@
             </div>
             <div class="card-body grid gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                    <label class="label" for="{{ $prefix }}-photo">{{ __('app.common.photo') }} ({{ __('app.common.optional') }})</label>
-                    <div class="flex items-center gap-4">
-                        <span class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 text-base font-bold text-slate-500">
-                            @if ($employee->photoUrl())
-                                <img src="{{ $employee->photoUrl() }}" alt="" class="h-full w-full object-cover">
-                            @else
-                                {{ $employee->initials() }}
-                            @endif
-                        </span>
-                        <div class="flex-1">
-                            <input id="{{ $prefix }}-photo" type="file" name="photo" accept="image/png,image/jpeg,image/webp" class="input">
-                            <p class="mt-1 text-xs text-slate-500">JPG/PNG/WebP, max 2MB.</p>
-                            @if ($employee->photo_path)
-                                <label class="mt-2 flex items-center gap-2 text-xs text-slate-600">
-                                    <input type="checkbox" name="remove_photo" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600">
-                                    {{ __('app.common.remove_photo') }}
-                                </label>
-                            @endif
-                        </div>
-                    </div>
+                    <p class="label">{{ __('app.common.photo') }} ({{ __('app.common.optional') }})</p>
+                    @include('partials.image-cropper', [
+                        'dataName' => 'photo_data',
+                        'removeName' => 'remove_photo',
+                        'allowRemove' => (bool) $employee->photo_path,
+                        'currentUrl' => $employee->photoUrl(),
+                        'initials' => $employee->initials(),
+                        'hint' => __('app.profile.photo_hint'),
+                        'pickLabel' => __('app.common.upload_photo'),
+                        'removeLabel' => __('app.common.remove_photo'),
+                    ])
                     @error('photo') <p class="form-error">{{ $message }}</p> @enderror
+                    @error('photo_data') <p class="form-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="label" for="{{ $prefix }}-name">{{ __('app.common.name') }}</label>
@@ -113,6 +106,44 @@
     </div>
 
     <div class="space-y-5">
+        @if (! empty($accountPicker))
+            <div class="card border-indigo-100 bg-indigo-50/40">
+                <div class="card-header">
+                    <h3 class="font-bold text-slate-900">{{ __('app.organization.autofill_title') }}</h3>
+                </div>
+                <div class="card-body space-y-2">
+                    <label class="label" for="{{ $prefix }}-autofill">{{ __('app.organization.autofill_employee') }}</label>
+                    <select id="{{ $prefix }}-autofill"
+                            class="input"
+                            data-employee-fill
+                            data-store-url="{{ route('employees.store') }}">
+                        <option value="">{{ __('app.organization.autofill_none') }}</option>
+                        @foreach ($accountPicker as $candidate)
+                            <option value="{{ $candidate->id }}" @selected(old('employee_id') == $candidate->id)
+                                    data-name="{{ $candidate->name }}"
+                                    data-nip="{{ $candidate->nip }}"
+                                    data-email="{{ $candidate->email }}"
+                                    data-phone="{{ $candidate->phone }}"
+                                    data-department-id="{{ $candidate->department_id }}"
+                                    data-position-id="{{ $candidate->position_id }}"
+                                    data-manager-id="{{ $candidate->manager_id }}"
+                                    data-hire-date="{{ $candidate->hire_date?->format('Y-m-d') }}"
+                                    data-status="{{ $candidate->status }}"
+                                    data-account-email="{{ $candidate->user?->email ?? $candidate->email }}"
+                                    data-account-role="{{ $candidate->user?->role === \App\Models\User::ROLE_SUPER_ADMIN ? 'employee' : ($candidate->user?->role ?? 'employee') }}"
+                                    data-has-account="{{ $candidate->user ? '1' : '0' }}"
+                                    data-update-url="{{ route('employees.update', $candidate) }}">
+                                {{ $candidate->name }} — {{ $candidate->nip }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs leading-relaxed text-slate-500">{{ __('app.organization.autofill_hint') }}</p>
+                    <p class="hidden rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800" data-generated-password></p>
+                    <input type="hidden" name="employee_id" value="{{ old('employee_id') }}">
+                </div>
+            </div>
+        @endif
+
         <div class="card">
             <div class="card-header">
                 <h3 class="font-bold text-slate-900">{{ __('app.employees.account') }}</h3>

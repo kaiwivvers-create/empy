@@ -15,6 +15,7 @@
     <select id="{{ $prefix }}-head" name="head_id" class="input">
         <option value="">{{ __('app.organization.no_head') }}</option>
         @foreach ($employees as $employee)
+            @continue($employee->headedDepartment && $employee->headedDepartment->id !== $department->id)
             <option value="{{ $employee->id }}" @selected(old('head_id', $department->head_id) == $employee->id)>
                 {{ $employee->name }} — {{ $employee->position?->name ?? $employee->nip }}
             </option>

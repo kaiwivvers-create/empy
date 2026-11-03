@@ -279,7 +279,7 @@
                 @elseif ($drawerEvaluation)
                     <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
                         <div class="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                            {{ $drawerEvaluation->isSubmitted() ? __('app.evaluations.submitted_locked') : __('app.evaluations.period_not_active') }}
+                            {{ $drawerEvaluation->isSubmitted() ? __('app.evaluations.submitted_locked') : __('app.evaluations.period_not_editable') }}
                         </div>
 
                         @if ($drawerEvaluation->purpose)
@@ -334,7 +334,7 @@
                 @else
                     <div class="flex-1 px-5 py-5">
                         <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                            {{ __('app.evaluations.period_not_active') }}
+                            {{ $period && ! $period->coversDate() ? __('app.evaluations.period_out_of_range') : __('app.evaluations.period_not_active') }}
                         </div>
                         @unless ($period?->isActive())
                             <a href="{{ route('evaluations.index', ['open' => 'evaluation-create']) }}" class="btn-secondary mt-3">

@@ -21,7 +21,7 @@ class AuthController extends Controller
         }
 
         return view('auth.login', [
-            'captcha' => Captcha::challenge(),
+            'captchas' => Captcha::challenges(),
             'turnstileEnabled' => Captcha::turnstileEnabled(),
         ]);
     }

@@ -101,13 +101,15 @@ class EvaluationController extends Controller
         $drawerEvaluation = $drawerEmployee ? ($evaluations[$drawerEmployee->id] ?? null) : null;
         $criteria = Criterion::active()->get();
 
+        // Managers may keep correcting a draft while the period is still
+        // inside its date range; admins are not bound by the window.
         $canScore = $drawerEvaluation
             ? ! $drawerEvaluation->isSubmitted()
                 && ($user->isAdmin() || $drawerEvaluation->evaluator_id === $user->id)
-                && ($period?->isActive() || $user->isAdmin())
+                && ($user->isAdmin() || (bool) $period?->isOpenForEditing())
             : false;
 
-        $canStart = ! $drawerEvaluation && $period?->isActive();
+        $canStart = ! $drawerEvaluation && (bool) $period?->acceptsEntries();
 
         return view('evaluations.team', [
             'periods' => $periods,
@@ -200,6 +202,10 @@ class EvaluationController extends Controller
 
         if (! $period->isActive()) {
             throw ValidationException::withMessages(['period_id' => __('app.evaluations.period_not_active')]);
+        }
+
+        if (! $user->isAdmin() && ! $period->coversDate()) {
+            throw ValidationException::withMessages(['period_id' => __('app.evaluations.period_not_editable')]);
         }
 
         if (Evaluation::where('period_id', $period->id)->where('employee_id', $employee->id)->exists()) {
@@ -301,8 +307,8 @@ class EvaluationController extends Controller
             return back()->with('error', __('app.evaluations.submitted_locked'));
         }
 
-        if (! $evaluation->period->isActive() && ! $request->user()->isAdmin()) {
-            return back()->with('error', __('app.evaluations.period_not_active'));
+        if (! $request->user()->isAdmin() && ! $evaluation->period?->isOpenForEditing()) {
+            return back()->with('error', __('app.evaluations.period_not_editable'));
         }
 
         $criteria = Criterion::active()->get();

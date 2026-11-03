@@ -8,7 +8,8 @@
 @endphp
 
 @php
-    $canManage = auth()->user()->isAdmin() || $evaluation->evaluator_id === auth()->id();
+    $canManage = (auth()->user()->isAdmin() || $evaluation->evaluator_id === auth()->id())
+        && (auth()->user()->isAdmin() || $evaluation->period?->isOpenForEditing());
     $canEditPeriod = auth()->user()->isAdmin()
         && \App\Support\PageAccess::allows(auth()->user(), 'periods')
         && $evaluation->period;

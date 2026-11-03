@@ -36,14 +36,16 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="table-stable w-full min-w-[62rem]">
+            <table class="table-stable w-full min-w-[80rem]">
                 <colgroup>
                     <col>
-                    <col class="w-[14rem]">
+                    <col class="w-[13rem]">
                     <col class="w-[9rem]">
-                    <col class="w-[12rem]">
-                    <col class="w-[8rem]">
+                    <col class="w-[11rem]">
                     <col class="w-[10rem]">
+                    <col class="w-[9rem]">
+                    <col class="w-[7rem]">
+                    <col class="w-[9rem]">
                 </colgroup>
                 <thead class="table-head">
                     <tr>
@@ -51,6 +53,8 @@
                         <th>{{ __('app.auth.email') }}</th>
                         <th>{{ __('app.users.role') }}</th>
                         <th>{{ __('app.users.linked_employee') }}</th>
+                        <th>{{ __('app.common.department') }}</th>
+                        <th>{{ __('app.common.phone') }}</th>
                         <th class="text-center">{{ __('app.common.status') }}</th>
                         <th class="text-right">{{ __('app.common.actions') }}</th>
                     </tr>
@@ -59,10 +63,24 @@
                     @forelse ($users as $user)
                         <tr class="table-row">
                             <td>
-                                <p class="font-semibold text-slate-800">{{ $user->name }}</p>
-                                @if ($user->id === auth()->id())
-                                    <p class="text-xs text-indigo-500">({{ $user->roleLabel() }} — {{ __('app.auth.welcome_back') }})</p>
-                                @endif
+                                <div class="flex items-center gap-3">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
+                                        @if ($user->avatarUrl())
+                                            <img src="{{ $user->avatarUrl() }}" alt="" class="h-full w-full object-cover">
+                                        @else
+                                            {{ $user->avatarInitials() }}
+                                        @endif
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="truncate font-semibold text-slate-800">{{ $user->name }}</p>
+                                        @if ($user->employee)
+                                            <p class="text-xs text-slate-400">{{ $user->employee->nip }}</p>
+                                        @endif
+                                        @if ($user->id === auth()->id())
+                                            <p class="text-xs text-indigo-500">{{ $user->roleLabel() }} — {{ __('app.auth.welcome_back') }}</p>
+                                        @endif
+                                    </div>
+                                </div>
                             </td>
                             <td class="text-slate-500">{{ $user->email }}</td>
                             <td>
@@ -77,6 +95,8 @@
                                     <span class="text-slate-400">{{ __('app.users.no_employee') }}</span>
                                 @endif
                             </td>
+                            <td class="text-slate-500">{{ $user->employee?->department?->name ?? '-' }}</td>
+                            <td class="text-slate-500">{{ $user->employee?->phone ?? '-' }}</td>
                             <td class="text-center">
                                 <span class="{{ $user->is_active ? 'badge-green' : 'badge-red' }}">
                                     {{ $user->is_active ? __('app.common.active') : __('app.common.inactive') }}
@@ -113,19 +133,21 @@
 
     @php $blankUser = new \App\Models\User; @endphp
 
-    <x-modal-form id="user-create" :title="__('app.users.create_title')" :subtitle="__('app.users.subtitle')" :action="route('users.store')" :open="$openModal === 'user-create'">
-        @include('users._fields', ['user' => $blankUser, 'roleOptions' => $roleOptions, 'prefix' => 'user-create'])
+    @php $employeeFields = ['departments' => $departments, 'positions' => $positions, 'managers' => $managers]; @endphp
+
+    <x-modal-form id="user-create" :title="__('app.users.create_title')" :subtitle="__('app.users.subtitle')" :action="route('users.store')" :open="$openModal === 'user-create'" wide>
+        @include('users._fields', ['user' => $blankUser, 'roleOptions' => $roleOptions, 'prefix' => 'user-create'] + $employeeFields)
     </x-modal-form>
 
     @foreach ($users as $user)
-        <x-modal-form id="user-edit-{{ $user->id }}" :title="__('app.users.edit_title')" :subtitle="__('app.users.subtitle')" :action="route('users.update', $user)" method="PUT" :open="$openModal === 'user-edit-'.$user->id">
-            @include('users._fields', ['user' => $user, 'roleOptions' => $roleOptions, 'prefix' => 'user-edit-'.$user->id])
+        <x-modal-form id="user-edit-{{ $user->id }}" :title="__('app.users.edit_title')" :subtitle="__('app.users.subtitle')" :action="route('users.update', $user)" method="PUT" :open="$openModal === 'user-edit-'.$user->id" wide>
+            @include('users._fields', ['user' => $user, 'roleOptions' => $roleOptions, 'prefix' => 'user-edit-'.$user->id] + $employeeFields)
         </x-modal-form>
     @endforeach
 
     @if ($editItem && ! $users->getCollection()->contains('id', $editItem->id))
-        <x-modal-form id="user-edit-{{ $editItem->id }}" :title="__('app.users.edit_title')" :subtitle="__('app.users.subtitle')" :action="route('users.update', $editItem)" method="PUT" :open="$openModal === 'user-edit-'.$editItem->id">
-            @include('users._fields', ['user' => $editItem, 'roleOptions' => $roleOptions, 'prefix' => 'user-edit-'.$editItem->id])
+        <x-modal-form id="user-edit-{{ $editItem->id }}" :title="__('app.users.edit_title')" :subtitle="__('app.users.subtitle')" :action="route('users.update', $editItem)" method="PUT" :open="$openModal === 'user-edit-'.$editItem->id" wide>
+            @include('users._fields', ['user' => $editItem, 'roleOptions' => $roleOptions, 'prefix' => 'user-edit-'.$editItem->id] + $employeeFields)
         </x-modal-form>
     @endif
 @endsection

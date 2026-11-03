@@ -14,6 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Error pages for unmatched routes render before the web group runs,
+        // so the locale cookie is kept readable for the global SetLocale.
+        $middleware->encryptCookies(except: [
+            'locale',
+        ]);
+
+        $middleware->prepend(SetLocale::class);
+
         $middleware->web(append: [
             SetLocale::class,
         ]);

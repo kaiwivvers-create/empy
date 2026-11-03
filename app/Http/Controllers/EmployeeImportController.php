@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Support\ActivityLogger;
+use App\Support\Organization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -115,7 +116,7 @@ class EmployeeImportController extends Controller
                 $hireDate = $timestamp ? date('Y-m-d', $timestamp) : null;
             }
 
-            Employee::create([
+            $created = Employee::create([
                 'nip' => $nip,
                 'name' => $name,
                 'email' => $line['email'] ?? null,
@@ -126,6 +127,8 @@ class EmployeeImportController extends Controller
                 'hire_date' => $hireDate,
                 'status' => in_array($line['status'] ?? 'active', ['active', 'inactive'], true) ? $line['status'] : 'active',
             ]);
+
+            Organization::syncManagerWithDepartmentHead($created);
 
             $imported++;
         }

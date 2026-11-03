@@ -12,6 +12,7 @@
     $user = auth()->user();
     $locale = app()->getLocale();
     $pendingFeedback = \App\Models\PeerFeedback::where('reviewer_id', $user->id)->whereNull('submitted_at')->count();
+    $pendingPasswordRequests = $user->isAdmin() ? \App\Models\PasswordResetRequest::query()->pending()->count() : 0;
     $can = fn (string $page) => \App\Support\PageAccess::allows($user, $page);
     $brandName = \App\Support\Brand::name();
     $brandTagline = \App\Support\Brand::tagline();
@@ -42,7 +43,9 @@
     <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
     <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16" cy="10" r="1"/><path d="M12 21a3 3 0 0 0 0-6h-1a2 2 0 0 1 0-4h4a3 3 0 0 0 3-3"/></symbol>
     <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></symbol>
     <symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v7c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12v7c0 1.66 4.03 3 9 3s9-1.34 9-3v-7"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
     <symbol id="i-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol>
 </svg>
 
@@ -161,12 +164,21 @@
             @endif
         @endif
 
-        @if ($can('users') || $can('activity'))
+        @if ($can('users') || $can('activity') || $user->isAdmin())
             <p class="nav-label">{{ __('app.nav.administration') }}</p>
             @if ($can('users'))
                 <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'nav-link-active' : '' }}">
                     <svg class="h-5 w-5"><use href="#i-users"/></svg>
                     {{ __('app.users.title') }}
+                </a>
+            @endif
+            @if ($user->isAdmin())
+                <a href="{{ route('password-requests.index') }}" class="nav-link {{ request()->routeIs('password-requests.*') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5"><use href="#i-shield"/></svg>
+                    <span class="flex-1">{{ __('app.password_requests.title') }}</span>
+                    @if ($pendingPasswordRequests > 0)
+                        <span class="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">{{ $pendingPasswordRequests }}</span>
+                    @endif
                 </a>
             @endif
             @if ($can('activity'))
@@ -236,6 +248,13 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-3">
+                <button type="button"
+                        class="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                        data-modal-open="page-help-modal"
+                        title="{{ __('app.help.button') }}"
+                        aria-label="{{ __('app.help.button') }}">
+                    <svg class="h-4 w-4"><use href="#i-help"/></svg>
+                </button>
                 <div class="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" title="{{ __('app.language') }}">
                     @foreach (['id' => 'ID', 'en' => 'EN'] as $code => $text)
                         <a href="{{ route('locale.switch', $code) }}"
@@ -255,6 +274,7 @@
 </div>
 
 @include('partials.profile-modal')
+@include('partials.page-help')
 
 @stack('scripts')
 </body>

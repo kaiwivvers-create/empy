@@ -49,7 +49,7 @@
                             <td class="font-semibold text-slate-800">{{ $criterion->name }}</td>
                             <td class="max-w-sm truncate text-slate-500">{{ $criterion->description ?: '-' }}</td>
                             <td class="text-center">
-                                <div class="mx-auto w-28">
+                                <div class="mx-auto w-full max-w-[7rem]">
                                     <p class="text-sm font-bold text-slate-800">{{ rtrim(rtrim(number_format((float) $criterion->weight, 2), '0'), '.') }}%</p>
                                     <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
                                         <div class="h-full rounded-full bg-indigo-500" style="width: {{ min((float) $criterion->weight, 100) }}%"></div>

@@ -18,6 +18,7 @@ class BrandingController extends Controller
         return view('settings.branding', [
             'name' => Brand::name(),
             'tagline' => Brand::tagline(),
+            'description' => Brand::description(),
             'logoUrl' => Brand::logoUrl(),
         ]);
     }
@@ -27,6 +28,7 @@ class BrandingController extends Controller
         $data = $request->validate([
             'brand_name' => ['required', 'string', 'max:60'],
             'brand_tagline' => ['nullable', 'string', 'max:120'],
+            'brand_description' => ['nullable', 'string', 'max:500'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'logo_data' => ['nullable', 'string'],
             'remove_logo' => ['nullable', 'boolean'],
@@ -34,6 +36,7 @@ class BrandingController extends Controller
 
         Setting::put('brand_name', $data['brand_name']);
         Setting::put('brand_tagline', $data['brand_tagline'] ?? null);
+        Setting::put('brand_description', $data['brand_description'] ?? null);
 
         $current = Setting::get('brand_logo_path');
 

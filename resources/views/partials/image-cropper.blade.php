@@ -35,7 +35,7 @@
     <div data-crop-editor class="mt-4 hidden rounded-2xl border border-slate-200 bg-slate-50 p-4">
         <div class="flex flex-col items-center gap-4 sm:flex-row">
             <div data-crop-viewport class="relative h-56 w-56 shrink-0 cursor-grab touch-none overflow-hidden rounded-2xl bg-slate-900 active:cursor-grabbing">
-                <img data-crop-image alt="" class="pointer-events-none absolute select-none">
+                <img data-crop-image alt="" draggable="false" class="pointer-events-none absolute max-w-none select-none" style="max-width: none; max-height: none;">
                 <div class="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/20"></div>
             </div>
             <div class="w-full min-w-0 flex-1 space-y-3">

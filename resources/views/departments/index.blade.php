@@ -22,7 +22,7 @@
                     <col>
                     <col class="w-[18rem]">
                     <col class="w-[12rem]">
-                    <col class="w-[7rem]">
+                    <col class="w-[8rem]">
                     <col class="w-[9rem]">
                 </colgroup>
                 <thead class="table-head">

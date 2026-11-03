@@ -30,13 +30,13 @@
                 <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{{ $errors->first() }}</div>
             @endif
 
-            <form method="POST" action="{{ route('password.email') }}" class="space-y-4">
+            <form method="POST" action="{{ route('password.request.store') }}" class="space-y-4">
                 @csrf
                 <div>
                     <label class="label" for="email">{{ __('app.auth.email') }}</label>
                     <input id="email" type="email" name="email" value="{{ old('email') }}" class="input" required autofocus>
                 </div>
-                <button type="submit" class="btn-primary w-full">{{ __('app.auth.send_reset_link') }}</button>
+                <button type="submit" class="btn-primary w-full">{{ __('app.auth.send_request') }}</button>
             </form>
 
             <a href="{{ route('login') }}" class="mt-4 block text-center text-xs font-semibold text-indigo-600 hover:text-indigo-800">

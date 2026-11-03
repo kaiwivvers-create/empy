@@ -44,6 +44,15 @@ class ProfileController extends Controller
                 Storage::disk('public')->delete($user->avatar_path);
             }
 
+            // Keep the linked employee photo identical to the account avatar.
+            if ($user->employee) {
+                if ($user->employee->photo_path && $user->employee->photo_path !== $path) {
+                    Storage::disk('public')->delete($user->employee->photo_path);
+                }
+
+                $user->employee->update(['photo_path' => $path]);
+            }
+
             $data['avatar_path'] = $path;
         }
 

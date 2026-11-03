@@ -59,14 +59,14 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="table-stable w-full min-w-[62rem]">
+            <table class="table-stable w-full min-w-[68rem]">
                 <colgroup>
                     <col>
                     <col class="w-[11rem]">
                     <col class="w-[11rem]">
                     <col class="w-[11rem]">
                     <col class="w-[8rem]">
-                    <col class="w-[10rem]">
+                    <col class="w-[17rem]">
                 </colgroup>
                 <thead class="table-head">
                     <tr>

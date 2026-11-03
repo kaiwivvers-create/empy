@@ -23,6 +23,12 @@
                     @error('brand_tagline') <p class="form-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
+                    <label class="label" for="brand_description">{{ __('app.branding.description') }}</label>
+                    <textarea id="brand_description" name="brand_description" rows="3" class="input" maxlength="500">{{ old('brand_description', $description) }}</textarea>
+                    <p class="mt-1.5 text-xs text-slate-500">{{ __('app.branding.description_hint') }}</p>
+                    @error('brand_description') <p class="form-error">{{ $message }}</p> @enderror
+                </div>
+                <div>
                     <p class="label">{{ __('app.branding.logo') }}</p>
                     @include('partials.image-cropper', [
                         'dataName' => 'logo_data',
@@ -61,6 +67,7 @@
                         <div class="min-w-0">
                             <p class="truncate text-base font-extrabold text-white">{{ $name }}</p>
                             <p class="truncate text-[11px] text-slate-400">{{ $tagline }}</p>
+                            <p class="mt-2 line-clamp-3 text-[11px] leading-relaxed text-slate-400">{{ $description }}</p>
                         </div>
                     </div>
                 </div>

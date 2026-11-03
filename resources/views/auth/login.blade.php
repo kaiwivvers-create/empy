@@ -114,23 +114,52 @@
                         </div>
                     @endif
 
-                    <div data-math-wrap class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <div id="captcha-local" data-local-captcha class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <div class="flex items-center justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class="text-xs font-semibold text-slate-500">{{ __('app.auth.captcha') }}</p>
-                                <p data-math-question class="mt-0.5 text-lg font-extrabold tracking-wide text-slate-800">{{ $captcha['question'] }}</p>
+                            <p class="text-xs font-semibold text-slate-500">{{ __('app.auth.captcha') }}</p>
+                            <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-0.5">
+                                <button type="button" data-captcha-tab="math" class="rounded-md bg-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white transition">{{ __('app.auth.captcha_math') }}</button>
+                                <button type="button" data-captcha-tab="physics" class="rounded-md px-2.5 py-1 text-[11px] font-bold text-slate-500 transition">{{ __('app.auth.captcha_physics') }}</button>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <input name="math_answer" data-math-answer inputmode="numeric" autocomplete="off"
-                                       class="input !w-20 !py-2 text-center" placeholder="?"
-                                       aria-label="{{ __('app.auth.captcha') }}">
-                                <button type="button" data-math-refresh class="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-indigo-600" title="{{ __('app.auth.captcha_refresh') }}">
+                        </div>
+
+                        <input type="hidden" name="captcha_type" value="math" data-captcha-type>
+
+                        <div id="captcha-math-panel" data-captcha-panel="math">
+                            <div class="mt-2 flex items-center justify-between gap-3">
+                                <p data-captcha-question class="text-lg font-extrabold tracking-wide text-slate-800">{{ $captchas['math']['question'] }}</p>
+                                <div class="flex items-center gap-2">
+                                    <input name="captcha_answer" data-captcha-answer inputmode="numeric" autocomplete="off"
+                                           class="input !w-20 !py-2 text-center" placeholder="?"
+                                           aria-label="{{ __('app.auth.captcha') }}">
+                                    <button type="button" data-captcha-refresh="{{ route('captcha.math') }}" class="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-indigo-600" title="{{ __('app.auth.captcha_refresh') }}">
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="hidden" name="captcha_token" value="{{ $captchas['math']['token'] }}" data-captcha-token>
+                        </div>
+
+                        <div id="captcha-physics-panel" data-captcha-panel="physics" class="hidden">
+                            <div class="mt-2 flex items-start justify-between gap-3">
+                                <p data-captcha-topic class="text-[10px] font-bold uppercase tracking-[0.14em] text-indigo-500">{{ $captchas['physics']['topic'] }}</p>
+                                <button type="button" data-captcha-refresh="{{ route('captcha.physics') }}" class="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-white hover:text-indigo-600" title="{{ __('app.auth.captcha_refresh') }}">
                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
                                 </button>
                             </div>
+                            <p data-captcha-question class="mt-0.5 text-sm font-semibold leading-snug text-slate-800">{{ $captchas['physics']['question'] }}</p>
+                            <div data-captcha-options class="mt-2 space-y-1.5">
+                                @foreach ($captchas['physics']['options'] as $index => $option)
+                                    <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 transition hover:border-indigo-300">
+                                        <input type="radio" name="captcha_answer" value="{{ $index }}" class="mt-0.5 h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500" disabled>
+                                        <span>{{ $option }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <input type="hidden" name="captcha_token" value="{{ $captchas['physics']['token'] }}" data-captcha-token disabled>
                         </div>
-                        <input type="hidden" name="math_token" value="{{ $captcha['token'] }}" data-math-token>
-                        <p class="mt-1.5 text-[11px] leading-relaxed text-slate-400">{{ __('app.auth.captcha_hint') }}</p>
+
+                        <p class="mt-2 text-[11px] leading-relaxed text-slate-400">{{ __('app.auth.captcha_hint') }}</p>
                     </div>
                 </div>
 
@@ -142,52 +171,124 @@
 <script>
     (() => {
         const siteKey = @json(config('services.turnstile.site_key'));
-        const mathWrap = document.querySelector('[data-math-wrap]');
+        const localCaptcha = document.querySelector('[data-local-captcha]');
         const turnstileWrap = document.querySelector('[data-turnstile-wrap]');
-        const answer = document.querySelector('[data-math-answer]');
-        const token = document.querySelector('[data-math-token]');
-        const question = document.querySelector('[data-math-question]');
-        const refresh = document.querySelector('[data-math-refresh]');
+        const typeInput = document.querySelector('[data-captcha-type]');
+        const tabs = [...document.querySelectorAll('[data-captcha-tab]')];
+        const panels = [...document.querySelectorAll('[data-captcha-panel]')];
 
-        if (!mathWrap || !answer || !token || !question) {
+        if (!localCaptcha || !typeInput) {
             return;
         }
 
-        const fetchChallenge = async () => {
+        let activeType = 'math';
+
+        const setPanelState = (panel, enabled) => {
+            panel.classList.toggle('hidden', !enabled);
+
+            panel.querySelectorAll('input').forEach((input) => {
+                input.disabled = !enabled;
+            });
+        };
+
+        const selectTab = (type) => {
+            activeType = type;
+            typeInput.value = type;
+
+            tabs.forEach((tab) => {
+                const selected = tab.dataset.captchaTab === type;
+                tab.classList.toggle('bg-indigo-600', selected);
+                tab.classList.toggle('text-white', selected);
+                tab.classList.toggle('text-slate-500', !selected);
+            });
+
+            panels.forEach((panel) => setPanelState(panel, panel.dataset.captchaPanel === type));
+        };
+
+        const refreshChallenge = async (type) => {
+            const panel = document.querySelector('[data-captcha-panel="' + type + '"]');
+            const button = panel?.querySelector('[data-captcha-refresh]');
+
+            if (!panel || !button) {
+                return;
+            }
+
             try {
-                const response = await fetch('{{ route('captcha.math') }}', { headers: { Accept: 'application/json' } });
+                const response = await fetch(button.dataset.captchaRefresh, { headers: { Accept: 'application/json' } });
                 const data = await response.json();
-                question.textContent = data.question;
-                token.value = data.token;
-                answer.value = '';
+
+                panel.querySelector('[data-captcha-token]').value = data.token;
+
+                if (type === 'math') {
+                    panel.querySelector('[data-captcha-question]').textContent = data.question;
+                    panel.querySelector('[data-captcha-answer]').value = '';
+                    return;
+                }
+
+                panel.querySelector('[data-captcha-topic]').textContent = data.topic;
+                panel.querySelector('[data-captcha-question]').textContent = data.question;
+
+                const options = panel.querySelector('[data-captcha-options]');
+                options.innerHTML = '';
+
+                data.options.forEach((option, index) => {
+                    const label = document.createElement('label');
+                    label.className = 'flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 transition hover:border-indigo-300';
+
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.name = 'captcha_answer';
+                    input.value = String(index);
+                    input.className = 'mt-0.5 h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500';
+                    input.disabled = activeType !== 'physics';
+
+                    const text = document.createElement('span');
+                    text.textContent = option;
+
+                    label.append(input, text);
+                    options.append(label);
+                });
             } catch (error) {
                 // Offline and the challenge could not refresh; keep the current one.
             }
         };
 
-        const useMath = () => {
+        const useLocalCaptcha = () => {
             turnstileWrap?.classList.add('hidden');
-            mathWrap.classList.remove('hidden');
-            answer.disabled = false;
-            fetchChallenge();
+            localCaptcha.classList.remove('hidden');
+            selectTab(activeType);
         };
 
         const useTurnstile = () => {
             if (!siteKey || !turnstileWrap) {
-                useMath();
+                useLocalCaptcha();
                 return;
             }
 
-            mathWrap.classList.add('hidden');
+            localCaptcha.classList.add('hidden');
             turnstileWrap.classList.remove('hidden');
-            answer.disabled = true;
+
+            localCaptcha.querySelectorAll('input').forEach((input) => {
+                input.disabled = true;
+            });
         };
 
-        refresh?.addEventListener('click', fetchChallenge);
-        window.addEventListener('offline', useMath);
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', () => selectTab(tab.dataset.captchaTab));
+        });
+
+        localCaptcha.querySelectorAll('[data-captcha-refresh]').forEach((button) => {
+            button.addEventListener('click', () => {
+                refreshChallenge(button.closest('[data-captcha-panel]').dataset.captchaPanel);
+            });
+        });
+
+        window.addEventListener('offline', useLocalCaptcha);
+
+        selectTab('math');
 
         if (!siteKey || !navigator.onLine) {
-            useMath();
+            useLocalCaptcha();
         } else {
             useTurnstile();
         }
@@ -196,7 +297,7 @@
 
 @if ($turnstileEnabled)
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer
-            onerror="document.querySelector('[data-turnstile-wrap]')?.classList.add('hidden'); document.querySelector('[data-math-wrap]')?.classList.remove('hidden'); document.querySelector('[data-math-answer]').disabled = false;"></script>
+            onerror="document.querySelector('[data-turnstile-wrap]')?.classList.add('hidden'); document.getElementById('captcha-local')?.classList.remove('hidden'); document.getElementById('captcha-math-panel')?.querySelectorAll('input').forEach(function (input) { input.disabled = false; }); document.querySelector('[data-captcha-type]')?.removeAttribute('disabled');"></script>
 @endif
 </body>
 </html>

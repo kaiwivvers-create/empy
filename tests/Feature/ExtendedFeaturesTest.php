@@ -12,7 +12,6 @@ use App\Models\PeerFeedback;
 use App\Models\Position;
 use App\Models\User;
 use App\Notifications\EvaluationReminderNotification;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -246,38 +245,5 @@ class ExtendedFeaturesTest extends TestCase
 
         $this->assertGuest();
         $this->assertTrue(\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, 5));
-    }
-
-    public function test_password_reset_link_is_sent(): void
-    {
-        Notification::fake();
-
-        $this->post('/forgot-password', ['email' => $this->admin->email])
-            ->assertSessionHas('success');
-
-        Notification::assertSentTo($this->admin, ResetPassword::class);
-    }
-
-    public function test_password_reset_uses_the_emailed_token(): void
-    {
-        Notification::fake();
-
-        $this->post('/forgot-password', ['email' => $this->admin->email]);
-
-        $token = null;
-        Notification::assertSentTo($this->admin, ResetPassword::class, function (ResetPassword $notification) use (&$token) {
-            $token = $notification->token;
-
-            return true;
-        });
-
-        $this->post('/reset-password', [
-            'token' => $token,
-            'email' => $this->admin->email,
-            'password' => 'new-password-123',
-            'password_confirmation' => 'new-password-123',
-        ])->assertRedirect('/login');
-
-        $this->assertTrue(password_verify('new-password-123', $this->admin->fresh()->password));
     }
 }

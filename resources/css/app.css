@@ -155,9 +155,11 @@
         table-layout: fixed;
     }
 
+    /* Only break a word when it cannot fit on a line of its own. */
     .table-stable th,
     .table-stable td {
-        overflow-wrap: anywhere;
+        overflow-wrap: break-word;
+        hyphens: none;
     }
 
     .stat-card {

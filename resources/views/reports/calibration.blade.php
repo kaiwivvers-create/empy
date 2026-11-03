@@ -34,14 +34,14 @@
 
     <div class="card">
         <div class="overflow-x-auto">
-            <table class="table-stable w-full min-w-[60rem]">
+            <table class="table-stable w-full min-w-[64rem]">
                 <colgroup>
                     <col>
-                    <col class="w-[7rem]">
-                    <col class="w-[7rem]">
-                    <col class="w-[7rem]">
-                    <col class="w-[7rem]">
-                    <col class="w-[16rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[8rem]">
+                    <col class="w-[17rem]">
                 </colgroup>
                 <thead class="table-head">
                     <tr>
@@ -71,10 +71,10 @@
                             <td class="text-center text-slate-600">{{ $group['low'] }}</td>
                             <td>
                                 <div class="flex items-center gap-2">
-                                    <div class="h-1.5 w-full max-w-[160px] overflow-hidden rounded-full bg-slate-100">
+                                    <div class="h-1.5 min-w-0 max-w-[160px] flex-1 overflow-hidden rounded-full bg-slate-100">
                                         <div class="h-full rounded-full bg-indigo-500" style="width: {{ min($group['average'], 100) }}%"></div>
                                     </div>
-                                    <span class="text-xs text-slate-400">{{ number_format($group['min'], 1) }}–{{ number_format($group['max'], 1) }}</span>
+                                    <span class="shrink-0 whitespace-nowrap text-xs text-slate-400">{{ number_format($group['min'], 1) }}–{{ number_format($group['max'], 1) }}</span>
                                 </div>
                             </td>
                         </tr>

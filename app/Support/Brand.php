@@ -16,6 +16,11 @@ class Brand
         return Setting::get('brand_tagline') ?: __('app.brand_sub');
     }
 
+    public static function description(): string
+    {
+        return Setting::get('brand_description') ?: __('app.landing.default_description');
+    }
+
     public static function logoPath(): ?string
     {
         return Setting::get('brand_logo_path');

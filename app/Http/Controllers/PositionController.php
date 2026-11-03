@@ -30,7 +30,9 @@ class PositionController extends Controller
 
         ActivityLogger::record('created', 'Position created: '.$position->name, $position);
 
-        return redirect()->route('positions.index')->with('success', __('app.positions.success_created'));
+        return redirect()
+            ->route($request->string('return_to')->toString() === 'chart' ? 'organization.chart' : 'positions.index')
+            ->with('success', __('app.positions.success_created'));
     }
 
     public function edit(Position $position): RedirectResponse

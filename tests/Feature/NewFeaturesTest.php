@@ -98,8 +98,9 @@ class NewFeaturesTest extends TestCase
         $this->post('/login', [
             'email' => $this->manager->email,
             'password' => 'password',
-            'math_token' => $challenge['token'],
-            'math_answer' => (string) $challenge['answer'],
+            'captcha_type' => 'math',
+            'captcha_token' => $challenge['token'],
+            'captcha_answer' => (string) $challenge['answer'],
         ])->assertRedirect(route('dashboard'));
 
         $this->assertAuthenticatedAs($this->manager);
@@ -114,11 +115,52 @@ class NewFeaturesTest extends TestCase
         $this->post('/login', [
             'email' => $this->manager->email,
             'password' => 'password',
-            'math_token' => $challenge['token'],
-            'math_answer' => (string) ($challenge['answer'] + 1),
+            'captcha_type' => 'math',
+            'captcha_token' => $challenge['token'],
+            'captcha_answer' => (string) ($challenge['answer'] + 1),
         ])->assertSessionHasErrors('captcha');
 
         $this->assertGuest();
+    }
+
+    public function test_login_accepts_the_physics_captcha_choice(): void
+    {
+        $this->get('/login')->assertOk();
+
+        $challenge = session('physics_captcha');
+
+        $this->assertNotNull($challenge);
+        $this->assertIsInt($challenge['answer']);
+
+        $this->post('/login', [
+            'email' => $this->manager->email,
+            'password' => 'password',
+            'captcha_type' => 'physics',
+            'captcha_token' => $challenge['token'],
+            'captcha_answer' => (string) $challenge['answer'],
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($this->manager);
+    }
+
+    public function test_physics_challenge_endpoint_returns_four_options(): void
+    {
+        $this->getJson('/captcha/physics')
+            ->assertOk()
+            ->assertJsonCount(4, 'options')
+            ->assertJsonPath('type', 'physics')
+            ->assertJsonStructure(['token', 'topic', 'question', 'options']);
+    }
+
+    public function test_physics_question_bank_always_builds_four_unique_options(): void
+    {
+        for ($attempt = 0; $attempt < 200; $attempt++) {
+            $question = \App\Support\PhysicsCaptcha::question();
+
+            $this->assertCount(4, $question['options']);
+            $this->assertCount(4, array_unique($question['options']));
+            $this->assertArrayHasKey($question['answer'], $question['options']);
+        }
     }
 
     public function test_custom_roles_inherit_a_base_level_and_page_defaults(): void

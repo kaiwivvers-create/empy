@@ -30,7 +30,7 @@
                     <col>
                     <col class="w-[8rem]">
                     <col class="w-[12rem]">
-                    <col class="w-[6rem]">
+                    <col class="w-[9rem]">
                     <col class="w-[8rem]">
                     <col class="w-[17rem]">
                 </colgroup>
