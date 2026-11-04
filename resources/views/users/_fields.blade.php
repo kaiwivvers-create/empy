@@ -22,11 +22,20 @@
     </div>
     <div>
         <label class="label" for="{{ $prefix }}-role">{{ __('app.users.role') }}</label>
-        <select id="{{ $prefix }}-role" name="role" class="input">
-            @foreach ($roleOptions as $role => $label)
-                <option value="{{ $role }}" @selected(old('role', $user->role ?? 'employee') === $role)>{{ $label }}</option>
-            @endforeach
-        </select>
+        @if ($user->isSuperAdmin())
+            {{-- The super admin role is permanent; there is no demotion path. --}}
+            <input type="hidden" name="role" value="{{ \App\Models\User::ROLE_SUPER_ADMIN }}">
+            <select id="{{ $prefix }}-role" class="input" disabled>
+                <option selected>{{ __('app.roles.super_admin') }}</option>
+            </select>
+            <p class="mt-1 text-xs text-slate-500">{{ __('app.users.super_admin_locked') }}</p>
+        @else
+            <select id="{{ $prefix }}-role" name="role" class="input">
+                @foreach ($roleOptions as $role => $label)
+                    <option value="{{ $role }}" @selected(old('role', $user->role ?? 'employee') === $role)>{{ $label }}</option>
+                @endforeach
+            </select>
+        @endif
         @error('role') <p class="form-error">{{ $message }}</p> @enderror
     </div>
     <div>

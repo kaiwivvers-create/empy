@@ -27,7 +27,7 @@
             <form method="GET" class="grid gap-3 sm:grid-cols-3">
                 <div>
                     <label class="label" for="period">{{ __('app.progress.period') }}</label>
-                    <select id="period" name="period" class="input" onchange="this.form.submit()">
+                    <select id="period" name="period" class="input" data-searchable onchange="this.form.submit()">
                         @foreach ($periods as $item)
                             <option value="{{ $item->id }}" @selected($period?->id === $item->id)>
                                 {{ $item->name }} · {{ __('app.periods.statuses.'.$item->status) }}
@@ -37,7 +37,7 @@
                 </div>
                 <div>
                     <label class="label" for="department">{{ __('app.common.department') }}</label>
-                    <select id="department" name="department" class="input" onchange="this.form.submit()">
+                    <select id="department" name="department" class="input" data-searchable onchange="this.form.submit()">
                         <option value="">{{ __('app.reports.all_departments') }}</option>
                         @foreach ($departments as $department)
                             <option value="{{ $department->id }}" @selected($departmentId === $department->id)>{{ $department->name }}</option>
@@ -101,7 +101,9 @@
                         <span class="text-slate-500">{{ __('app.progress.managers_pending') }}</span>
                         <span class="font-semibold text-slate-800">{{ $managerGroups->sum('pending') }}</span>
                     </div>
-                    <a href="{{ route('periods.index') }}" class="btn-secondary btn-sm w-full">{{ __('app.progress.manage_schedule') }}</a>
+                    @if (auth()->user()->isAdmin() && \App\Support\PageAccess::allows(auth()->user(), 'periods'))
+                        <a href="{{ route('periods.index') }}" class="btn-secondary btn-sm w-full">{{ __('app.progress.manage_schedule') }}</a>
+                    @endif
                 </div>
             </div>
 

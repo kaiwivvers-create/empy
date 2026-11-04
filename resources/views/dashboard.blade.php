@@ -20,7 +20,7 @@
 
             @if ($periodFilterEnabled)
                 <form method="GET" class="flex items-center gap-1">
-                    <select name="period" class="input !py-1.5 text-xs" onchange="this.form.submit()" title="{{ __('app.dashboard.filter_period') }}">
+                    <select name="period" class="input !py-1.5 text-xs" data-searchable onchange="this.form.submit()" title="{{ __('app.dashboard.filter_period') }}">
                         @foreach ($periods as $periodOption)
                             <option value="{{ $periodOption->id }}" @selected($activePeriod?->id === $periodOption->id)>{{ $periodOption->name }}</option>
                         @endforeach
@@ -58,7 +58,7 @@
                     </span>
                 </div>
                 <p class="mt-3 text-3xl font-extrabold text-slate-900">{{ number_format($evaluated) }}</p>
-                <p class="mt-1 text-xs text-slate-400">{{ __('app.dashboard.evaluated_of', ['done' => $evaluated, 'total' => $totalEmployees]) }}</p>
+                <p class="mt-1 text-xs text-slate-400">{{ __('app.dashboard.evaluated_of', ['done' => $evaluated, 'total' => $evaluationTargets]) }}</p>
             </div>
             <div class="stat-card">
                 <div class="flex items-center justify-between">
@@ -138,7 +138,9 @@
             <div class="card lg:col-span-3">
                 <div class="card-header">
                     <h3 class="font-bold text-slate-900">{{ __('app.dashboard.recent') }}</h3>
-                    <a href="{{ route('reports.index') }}" class="btn-ghost">{{ __('app.dashboard.view_report') }}</a>
+                    @if (\App\Support\PageAccess::allows(auth()->user(), 'reports'))
+                        <a href="{{ route('reports.index') }}" class="btn-ghost">{{ __('app.dashboard.view_report') }}</a>
+                    @endif
                 </div>
                 <div class="overflow-x-auto">
                     <table class="table-stable w-full min-w-[42rem]">
@@ -276,10 +278,12 @@
             <div class="card lg:col-span-3">
                 <div class="card-header">
                     <h3 class="font-bold text-slate-900">{{ __('app.dashboard.team_members') }}</h3>
-                    <a href="{{ route('evaluations.create') }}" class="btn-primary btn-sm">
-                        <svg class="h-4 w-4"><use href="#i-plus"/></svg>
-                        {{ __('app.evaluations.add') }}
-                    </a>
+                    @if (\App\Support\PageAccess::allows(auth()->user(), 'evaluations'))
+                        <a href="{{ route('evaluations.create') }}" class="btn-primary btn-sm">
+                            <svg class="h-4 w-4"><use href="#i-plus"/></svg>
+                            {{ __('app.evaluations.add') }}
+                        </a>
+                    @endif
                 </div>
                 <div class="overflow-x-auto">
                     <table class="table-stable w-full min-w-[42rem]">
@@ -445,10 +449,12 @@
                     @endif
                 </div>
                 <div class="border-t border-white/10 bg-white/5 px-6 py-4">
-                    <a href="{{ route('evaluations.index') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-300 hover:text-white">
-                        {{ __('app.evaluations.title') }}
-                        <svg class="h-4 w-4"><use href="#i-arrow"/></svg>
-                    </a>
+                    @if (\App\Support\PageAccess::allows(auth()->user(), 'evaluations'))
+                        <a href="{{ route('evaluations.index') }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-300 hover:text-white">
+                            {{ __('app.evaluations.title') }}
+                            <svg class="h-4 w-4"><use href="#i-arrow"/></svg>
+                        </a>
+                    @endif
                 </div>
             </div>
 

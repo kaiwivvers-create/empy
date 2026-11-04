@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,25 @@ class Evaluation extends Model
             'manager_score' => 'decimal:2',
             'submitted_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Never expose the super admin's evaluation history to lower roles.
+        static::addGlobalScope('visible_to_viewer', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (! $user || $user->isSuperAdmin()) {
+                return;
+            }
+
+            $hiddenEmployeeIds = Employee::query()
+                ->withoutGlobalScope('visible_to_viewer')
+                ->whereIn('user_id', User::query()->where('role', User::ROLE_SUPER_ADMIN)->select('id'))
+                ->select('id');
+
+            $builder->whereNotIn('employee_id', $hiddenEmployeeIds);
+        });
     }
 
     public function period(): BelongsTo
@@ -65,6 +85,25 @@ class Evaluation extends Model
     public function isSubmitted(): bool
     {
         return $this->status === 'submitted';
+    }
+
+    /**
+     * Employees may give feedback when invited, but only non-employee roles
+     * (admins, managers, and custom leadership roles) may send requests.
+     */
+    public function userCanManageFeedback(?User $user): bool
+    {
+        if (! $user || $user->isEmployee()) {
+            return false;
+        }
+
+        if ($user->isAdmin() || $this->evaluator_id === $user->id) {
+            return true;
+        }
+
+        return $user->isManager()
+            && $user->employee !== null
+            && $this->employee?->manager_id === $user->employee->id;
     }
 
     /**

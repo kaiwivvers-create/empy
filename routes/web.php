@@ -57,6 +57,8 @@ Route::middleware(['auth', 'page.access'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    Route::get('/kpi', [EmployeeGoalController::class, 'overview'])->name('kpi.index');
+
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::middleware('role:admin')->group(function () {
         Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
@@ -128,6 +130,16 @@ Route::middleware(['auth', 'page.access'])->group(function () {
             ->name('organization.employees.manager');
     });
 
+    Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+    Route::middleware('role:admin,manager')->group(function () {
+        Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
+        Route::put('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
+        Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+        Route::post('/projects/{project}/members', [ProjectController::class, 'addMember'])->name('projects.members.store');
+        Route::delete('/projects/{project}/members/{employee}', [ProjectController::class, 'removeMember'])->name('projects.members.destroy');
+    });
+
     Route::get('/evaluations', [EvaluationController::class, 'index'])->name('evaluations.index');
     Route::get('/evaluations/team', [EvaluationController::class, 'team'])->middleware('role:admin,manager')->name('evaluations.team');
     Route::get('/evaluations/create', [EvaluationController::class, 'create'])->middleware('role:admin,manager')->name('evaluations.create');
@@ -147,6 +159,7 @@ Route::middleware(['auth', 'page.access'])->group(function () {
     Route::delete('/evaluations/{evaluation}/plans/{plan}', [ImprovementPlanController::class, 'destroy'])->name('evaluations.plans.destroy');
 
     Route::get('/feedback', [PeerFeedbackController::class, 'index'])->name('feedback.index');
+    Route::post('/feedback/requests', [PeerFeedbackController::class, 'sendRequest'])->name('feedback.requests.store');
     Route::post('/feedback/{feedback}', [PeerFeedbackController::class, 'submit'])->name('feedback.submit');
 
     Route::middleware('role:admin,manager')->group(function () {

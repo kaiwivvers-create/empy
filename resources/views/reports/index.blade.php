@@ -38,7 +38,7 @@
             <form method="GET" class="grid gap-3 sm:grid-cols-3">
                 <div>
                     <label class="label" for="period">{{ __('app.common.period') }}</label>
-                    <select id="period" name="period" class="input">
+                    <select id="period" name="period" class="input" data-searchable>
                         @foreach ($periods as $item)
                             <option value="{{ $item->id }}" @selected($period?->id === $item->id)>{{ $item->name }}</option>
                         @endforeach
@@ -46,7 +46,7 @@
                 </div>
                 <div>
                     <label class="label" for="department">{{ __('app.common.department') }}</label>
-                    <select id="department" name="department" class="input">
+                    <select id="department" name="department" class="input" data-searchable>
                         <option value="">{{ __('app.reports.all_departments') }}</option>
                         @foreach ($departments as $department)
                             <option value="{{ $department->id }}" @selected($departmentId === $department->id)>{{ $department->name }}</option>

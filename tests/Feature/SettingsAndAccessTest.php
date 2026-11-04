@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\ActivityLog;
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\RolePermission;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\PageAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -50,6 +52,13 @@ class SettingsAndAccessTest extends TestCase
 
     public function test_super_admin_role_is_invisible_to_other_roles(): void
     {
+        $employee = Employee::create([
+            'user_id' => $this->superAdmin->id,
+            'nip' => 'SA-001',
+            'name' => 'Kai',
+            'status' => 'active',
+        ]);
+
         $this->actingAs($this->admin)
             ->get(route('users.index'))
             ->assertOk()
@@ -60,11 +69,90 @@ class SettingsAndAccessTest extends TestCase
             ->get(route('users.edit', $this->superAdmin))
             ->assertNotFound();
 
+        $this->actingAs($this->admin)
+            ->get(route('employees.index'))
+            ->assertOk()
+            ->assertDontSee('Kai')
+            ->assertDontSee('SA-001');
+
+        $this->actingAs($this->admin)
+            ->get(route('employees.show', $employee))
+            ->assertNotFound();
+
+        $this->actingAs($this->admin)
+            ->get(route('organization.chart'))
+            ->assertOk()
+            ->assertDontSee('Kai');
+
         $this->actingAs($this->superAdmin)
             ->get(route('users.index'))
             ->assertOk()
             ->assertSee('Kai')
             ->assertSee('Super Admin');
+    }
+
+    public function test_access_form_posts_page_names_not_numeric_indexes(): void
+    {
+        $response = $this->actingAs($this->superAdmin)->get(route('access.index'));
+
+        $response->assertOk()
+            ->assertSee('name="permissions[admin][dashboard]"', false)
+            ->assertSee('name="permissions[dashboard][admin]"', false)
+            ->assertDontSee('name="permissions[admin][0]"', false);
+
+        $this->assertArrayHasKey('dashboard', PageAccess::pages());
+    }
+
+    public function test_access_defaults_and_saved_matrix_survive_a_reload(): void
+    {
+        $this->actingAs($this->superAdmin)->put(route('access.defaults'), [
+            'permissions' => [
+                'dashboard' => ['admin' => 1, 'manager' => 1, 'employee' => 1],
+                'reports' => ['admin' => 1, 'manager' => 1, 'employee' => 1],
+                'kpi' => ['admin' => 1, 'manager' => 1, 'employee' => 0],
+            ],
+        ])->assertRedirect();
+
+        $this->assertTrue(PageAccess::defaults()['reports']['employee']);
+        $this->assertFalse(PageAccess::defaults()['kpi']['employee']);
+
+        $this->actingAs($this->superAdmin)->put(route('access.update'), [
+            'permissions' => [
+                'admin' => ['dashboard' => 1, 'reports' => 1, 'kpi' => 1, 'departments' => 0],
+                'manager' => ['dashboard' => 1, 'reports' => 1],
+                'employee' => ['dashboard' => 1, 'reports' => 1],
+            ],
+        ])->assertRedirect();
+
+        $this->actingAs($this->superAdmin)
+            ->get(route('access.index'))
+            ->assertOk()
+            ->assertSee('name="permissions[admin][reports]"', false)
+            ->assertSee('name="permissions[employee][reports]"', false);
+
+        $this->assertTrue(PageAccess::allows($this->admin->fresh(), 'reports'));
+        $this->assertFalse(PageAccess::allows($this->admin->fresh(), 'departments'));
+
+        $employee = User::create([
+            'name' => 'Staff',
+            'email' => 'staff@test.test',
+            'password' => 'password',
+            'role' => User::ROLE_EMPLOYEE,
+        ]);
+
+        $this->assertTrue(PageAccess::allows($employee, 'reports'));
+    }
+
+    public function test_super_admin_cannot_be_demoted(): void
+    {
+        $this->actingAs($this->superAdmin)->put(route('users.update', $this->superAdmin), [
+            'name' => 'Kai',
+            'email' => 'kai@test.test',
+            'role' => User::ROLE_ADMIN,
+            'is_active' => 1,
+        ])->assertSessionHasErrors('role');
+
+        $this->assertSame(User::ROLE_SUPER_ADMIN, $this->superAdmin->fresh()->role);
     }
 
     public function test_page_access_can_block_a_role(): void

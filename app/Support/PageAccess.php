@@ -20,6 +20,8 @@ class PageAccess
             'dashboard' => ['group' => 'main', 'label' => 'app.nav.dashboard'],
             'employees' => ['group' => 'main', 'label' => 'app.nav.employees'],
             'evaluations' => ['group' => 'main', 'label' => 'app.nav.evaluations'],
+            'kpi' => ['group' => 'main', 'label' => 'app.kpi.title'],
+            'projects' => ['group' => 'main', 'label' => 'app.projects.title'],
             'feedback' => ['group' => 'main', 'label' => 'app.feedback.title'],
             'reports' => ['group' => 'main', 'label' => 'app.nav.reports'],
             'organization' => ['group' => 'main', 'label' => 'app.organization.title'],
@@ -57,6 +59,8 @@ class PageAccess
             'dashboard' => ['admin' => true, 'manager' => true, 'employee' => true],
             'employees' => ['admin' => true, 'manager' => true, 'employee' => true],
             'evaluations' => ['admin' => true, 'manager' => true, 'employee' => true],
+            'kpi' => ['admin' => true, 'manager' => true, 'employee' => true],
+            'projects' => ['admin' => true, 'manager' => true, 'employee' => true],
             'feedback' => ['admin' => true, 'manager' => true, 'employee' => true],
             'reports' => ['admin' => true, 'manager' => true, 'employee' => false],
             'organization' => ['admin' => true, 'manager' => true, 'employee' => false],
@@ -117,6 +121,17 @@ class PageAccess
         }
 
         Setting::put('access_defaults', json_encode($matrix));
+
+        // Drop overrides that now match the new default so the updated
+        // default is what every role actually receives.
+        RolePermission::query()->get()->each(function (RolePermission $permission) use ($matrix) {
+            $page = $permission->permission;
+            $role = $permission->role;
+
+            if (isset($matrix[$page][$role]) && (bool) $permission->is_allowed === $matrix[$page][$role]) {
+                $permission->delete();
+            }
+        });
     }
 
     /**
@@ -222,6 +237,8 @@ class PageAccess
             $routeName === 'dashboard' => 'dashboard',
             str_starts_with($routeName, 'employees.') => 'employees',
             str_starts_with($routeName, 'evaluations.') => 'evaluations',
+            str_starts_with($routeName, 'kpi.') => 'kpi',
+            str_starts_with($routeName, 'projects.') => 'projects',
             str_starts_with($routeName, 'feedback.') => 'feedback',
             str_starts_with($routeName, 'reports.') => 'reports',
             str_starts_with($routeName, 'organization.') => 'organization',
@@ -243,6 +260,8 @@ class PageAccess
             'dashboard' => 'dashboard',
             'employees' => 'employees.index',
             'evaluations' => 'evaluations.index',
+            'kpi' => 'kpi.index',
+            'projects' => 'projects.index',
             'feedback' => 'feedback.index',
             'reports' => 'reports.index',
             'organization' => 'organization.chart',
@@ -256,9 +275,17 @@ class PageAccess
         ];
 
         foreach ($routes as $page => $route) {
-            if (static::allows($user, $page)) {
-                return $route;
+            if (! static::allows($user, $page)) {
+                continue;
             }
+
+            // Admins and managers do their evaluation work on the team page;
+            // the personal tracking list is an employee view.
+            if ($page === 'evaluations' && ! $user->isEmployee()) {
+                return 'evaluations.team';
+            }
+
+            return $route;
         }
 
         return 'dashboard';

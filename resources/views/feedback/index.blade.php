@@ -8,9 +8,18 @@
 @endphp
 
 @section('content')
-    <div class="mb-6">
-        <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('app.feedback.title') }}</h2>
-        <p class="mt-1 text-sm text-slate-500">{{ __('app.feedback.subtitle') }}</p>
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('app.feedback.title') }}</h2>
+            <p class="mt-1 text-sm text-slate-500">{{ __('app.feedback.subtitle') }}</p>
+        </div>
+
+        @if ($canSend && $evaluations->isNotEmpty())
+            <button type="button" class="btn-primary" data-modal-open="feedback-request-modal">
+                <svg class="h-4 w-4"><use href="#i-plus"/></svg>
+                {{ __('app.feedback.send_title') }}
+            </button>
+        @endif
     </div>
 
     <div class="mb-5 rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-sm text-indigo-800">
@@ -87,4 +96,100 @@
             </div>
         </div>
     </div>
+
+    @if ($canSend && $evaluations->isNotEmpty())
+        <x-modal-form
+            id="feedback-request-modal"
+            :title="__('app.feedback.send_title')"
+            :subtitle="__('app.feedback.send_hint')"
+            :action="route('feedback.requests.store')"
+            :submit-label="__('app.feedback.invite')">
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="label" for="feedback-period-filter">{{ __('app.feedback.period_filter') }}</label>
+                    <select id="feedback-period-filter" class="input" data-feedback-period-filter>
+                        <option value="">{{ __('app.feedback.all_periods') }}</option>
+                        @foreach ($periods as $period)
+                            <option value="{{ $period->id }}">{{ $period->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="label" for="feedback-evaluation-id">{{ __('app.feedback.evaluation') }}</label>
+                    <select id="feedback-evaluation-id" name="evaluation_id" class="input" required data-feedback-evaluation>
+                        <option value="">— {{ __('app.employees.choose') }} —</option>
+                        @foreach ($evaluations as $evaluation)
+                            <option value="{{ $evaluation->id }}"
+                                    data-period="{{ $evaluation->period_id }}"
+                                    @selected(old('evaluation_id') == $evaluation->id)>
+                                {{ $evaluation->employee?->name }} · {{ $evaluation->period?->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="label" for="feedback-reviewer-id">{{ __('app.feedback.reviewer') }}</label>
+                    <select id="feedback-reviewer-id"
+                            class="input cursor-not-allowed bg-slate-100 text-slate-500 disabled:opacity-80"
+                            data-feedback-reviewer-self
+                            disabled>
+                        <option selected>{{ auth()->user()->name }} ({{ auth()->user()->roleLabel() }})</option>
+                    </select>
+                    <input type="hidden" name="reviewer_id" value="{{ auth()->user()->id }}">
+                </div>
+
+                <div>
+                    <label class="label" for="feedback-relationship">{{ __('app.feedback.relationship') }}</label>
+                    <select id="feedback-relationship" name="relationship" class="input">
+                        @foreach (['peer', 'subordinate', 'other'] as $relationship)
+                            <option value="{{ $relationship }}" @selected(old('relationship', 'peer') === $relationship)>
+                                {{ __('app.feedback.relationships.'.$relationship) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+        </x-modal-form>
+    @endif
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const periodFilter = document.querySelector('[data-feedback-period-filter]');
+            const evaluationSelect = document.querySelector('[data-feedback-evaluation]');
+
+            if (! periodFilter || ! evaluationSelect) {
+                return;
+            }
+
+            const evaluationOptions = Array.from(evaluationSelect.querySelectorAll('option[data-period]'));
+
+            const applyFilter = () => {
+                const period = periodFilter.value;
+                let firstVisible = null;
+
+                evaluationOptions.forEach((option) => {
+                    const matches = ! period || option.dataset.period === period;
+                    option.hidden = ! matches;
+                    option.disabled = ! matches;
+
+                    if (matches && ! firstVisible) {
+                        firstVisible = option;
+                    }
+                });
+
+                if (evaluationSelect.selectedOptions[0]?.disabled) {
+                    evaluationSelect.value = firstVisible?.value ?? '';
+                }
+            };
+
+            periodFilter.addEventListener('change', applyFilter);
+            applyFilter();
+        });
+    </script>
+@endpush

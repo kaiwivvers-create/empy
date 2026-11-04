@@ -20,6 +20,7 @@ class OrganizationChartController extends Controller
     public function index(Request $request): View
     {
         $departments = Department::with([
+            'head.user',
             'head.position',
             'employees' => fn ($query) => $query->active()->with(['position', 'manager', 'user', 'headedDepartment'])->orderBy('name'),
         ])->orderBy('name')->get();

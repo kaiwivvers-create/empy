@@ -16,7 +16,7 @@
             <div class="sm:col-span-2">
                 <label class="label" for="period">{{ __('app.common.period') }}</label>
                 <form method="GET" class="flex gap-2">
-                    <select id="period" name="period" class="input" onchange="this.form.submit()">
+                    <select id="period" name="period" class="input" data-searchable onchange="this.form.submit()">
                         @foreach ($periods as $item)
                             <option value="{{ $item->id }}" @selected($period?->id === $item->id)>{{ $item->name }}</option>
                         @endforeach

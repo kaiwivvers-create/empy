@@ -65,7 +65,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (collect($pages)->groupBy('group') as $group => $items)
+                    @foreach (collect($pages)->groupBy('group', true) as $group => $items)
                         <tr class="border-t border-slate-100 bg-slate-50/80">
                             <td colspan="{{ count($roles) + 2 }}" class="px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                                 {{ __('app.access.group_'.$group) }}
@@ -123,7 +123,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (collect($pages)->groupBy('group') as $group => $items)
+                    @foreach (collect($pages)->groupBy('group', true) as $group => $items)
                         <tr class="border-t border-slate-100 bg-slate-50/80">
                             <td colspan="{{ count($roles) + 1 }}" class="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                                 {{ __('app.access.group_'.$group) }}

@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initModals();
     initDrawers();
     initCroppers();
+    initSearchableSelects();
+    initMemberFilters();
     initReportChart();
 
     function initModals() {
@@ -151,59 +153,165 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupCropper(root) {
         const pick = root.querySelector('[data-crop-pick]');
         const input = root.querySelector('[data-crop-input]');
-        const editor = root.querySelector('[data-crop-editor]');
-        const viewport = root.querySelector('[data-crop-viewport]');
-        const image = root.querySelector('[data-crop-image]');
-        const zoomInput = root.querySelector('[data-crop-zoom]');
-        const applyButton = root.querySelector('[data-crop-apply]');
+        const modal = root.querySelector('[data-crop-modal]');
+        const viewport = modal?.querySelector('[data-crop-viewport]');
+        const canvas = modal?.querySelector('[data-crop-canvas]');
+        const zoomInput = modal?.querySelector('[data-crop-zoom]');
+        const rotationInput = modal?.querySelector('[data-crop-rotation]');
+        const applyButton = modal?.querySelector('[data-crop-apply]');
+        const resetButton = modal?.querySelector('[data-crop-reset]');
+        const zoomLabel = modal?.querySelector('[data-crop-zoom-label]');
+        const rotationLabel = modal?.querySelector('[data-crop-rotation-label]');
         const dataInput = root.querySelector('[data-crop-data]');
         const preview = root.querySelector('[data-crop-preview]');
         const initials = root.querySelector('[data-crop-initials]');
+        const removeInput = root.querySelector('[data-crop-remove]');
 
-        if (!pick || !input || !editor || !viewport || !image || !zoomInput || !applyButton || !dataInput) {
+        if (!pick || !input || !modal || !viewport || !canvas || !zoomInput || !rotationInput || !applyButton || !dataInput) {
             return;
         }
 
-        // Tailwind's base styles cap images at max-width: 100%, which would
-        // squeeze the zoomed preview against the square viewport. The crop
-        // preview must keep its natural aspect ratio.
-        image.style.maxWidth = 'none';
-        image.style.maxHeight = 'none';
+        // Keep the crop window at the end of <body> so it covers the whole
+        // screen even when the cropper lives inside another modal.
+        document.body.appendChild(modal);
 
-        const applyLabel = applyButton.textContent;
-        const state = { width: 0, height: 0, zoom: 1, offsetX: 0, offsetY: 0 };
+        const context = canvas.getContext('2d');
+        const size = 512;
+        canvas.width = size;
+        canvas.height = size;
+
+        const state = { image: null, zoom: 1, rotation: 0, flipX: false, flipY: false, offsetX: 0, offsetY: 0 };
         let objectUrl = null;
         let dragging = false;
-        let startX = 0;
-        let startY = 0;
-        let originX = 0;
-        let originY = 0;
+        let lastX = 0;
+        let lastY = 0;
 
-        const scale = () => {
-            const base = Math.max(viewport.clientWidth / state.width, viewport.clientHeight / state.height);
+        const corners = [
+            [size / 2, size / 2],
+            [size / 2, -size / 2],
+            [-size / 2, size / 2],
+            [-size / 2, -size / 2],
+        ];
+        const normalizeRotation = (degrees) => ((degrees + 180) % 360 + 360) % 360 - 180;
 
-            return base * state.zoom;
+        const geometry = () => {
+            if (!state.image) {
+                return null;
+            }
+
+            const radians = state.rotation * Math.PI / 180;
+            const cos = Math.cos(radians);
+            const sin = Math.sin(radians);
+            const halfImageWidth = state.image.width / 2;
+            const halfImageHeight = state.image.height / 2;
+
+            // Scale the image so the rotated image still covers every corner
+            // of the square crop area (not merely its bounding box).
+            let baseScale = 0;
+
+            corners.forEach(([x, y]) => {
+                const imageX = x * cos + y * sin;
+                const imageY = -x * sin + y * cos;
+                baseScale = Math.max(
+                    baseScale,
+                    Math.abs(imageX) / halfImageWidth,
+                    Math.abs(imageY) / halfImageHeight,
+                );
+            });
+
+            return { radians, scale: baseScale * state.zoom };
         };
 
-        const render = () => {
-            if (!state.width || !state.height) {
+        const covers = (offsetX, offsetY, shape) => {
+            if (!state.image) {
+                return false;
+            }
+
+            const cos = Math.cos(shape.radians);
+            const sin = Math.sin(shape.radians);
+            const halfImageWidth = state.image.width / 2;
+            const halfImageHeight = state.image.height / 2;
+
+            return corners.every(([x, y]) => {
+                const dx = x - offsetX;
+                const dy = y - offsetY;
+                const imageX = (dx * cos + dy * sin) / shape.scale;
+                const imageY = (-dx * sin + dy * cos) / shape.scale;
+
+                return Math.abs(imageX) <= halfImageWidth + 0.5
+                    && Math.abs(imageY) <= halfImageHeight + 0.5;
+            });
+        };
+
+        const drawInto = (targetContext, targetSize) => {
+            const shape = geometry();
+
+            if (!shape) {
                 return;
             }
 
-            const currentScale = scale();
-            const width = state.width * currentScale;
-            const height = state.height * currentScale;
-            const maxX = Math.max(0, (width - viewport.clientWidth) / 2);
-            const maxY = Math.max(0, (height - viewport.clientHeight) / 2);
+            const ratio = targetSize / size;
 
-            state.offsetX = Math.min(maxX, Math.max(-maxX, state.offsetX));
-            state.offsetY = Math.min(maxY, Math.max(-maxY, state.offsetY));
+            // Zooming or rotating can make the current drag position invalid;
+            // return to the centre instead of exposing empty corners.
+            if (!covers(state.offsetX, state.offsetY, shape)) {
+                state.offsetX = 0;
+                state.offsetY = 0;
+            }
 
-            image.style.width = `${width}px`;
-            image.style.height = `${height}px`;
-            image.style.left = `${(viewport.clientWidth - width) / 2 + state.offsetX}px`;
-            image.style.top = `${(viewport.clientHeight - height) / 2 + state.offsetY}px`;
+            targetContext.save();
+            targetContext.translate(targetSize / 2 + state.offsetX * ratio, targetSize / 2 + state.offsetY * ratio);
+            targetContext.rotate(shape.radians);
+            targetContext.scale(
+                (state.flipX ? -1 : 1) * shape.scale * ratio,
+                (state.flipY ? -1 : 1) * shape.scale * ratio,
+            );
+            targetContext.drawImage(state.image, -state.image.width / 2, -state.image.height / 2);
+            targetContext.restore();
         };
+
+        const render = () => {
+            if (!state.image) {
+                return;
+            }
+
+            context.clearRect(0, 0, size, size);
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = 'high';
+            drawInto(context, size);
+
+            if (zoomLabel) {
+                zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+            }
+
+            if (rotationLabel) {
+                rotationLabel.textContent = `${Math.round(state.rotation)}°`;
+            }
+
+            zoomInput.value = String(state.zoom);
+            rotationInput.value = String(state.rotation);
+        };
+
+        const reset = () => {
+            state.zoom = 1;
+            state.rotation = 0;
+            state.flipX = false;
+            state.flipY = false;
+            state.offsetX = 0;
+            state.offsetY = 0;
+            render();
+        };
+
+        const setModalOpen = (open) => {
+            modal.dataset.open = open ? 'true' : 'false';
+            modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+            document.body.classList.toggle(
+                'overflow-hidden',
+                open || Boolean(document.querySelector('[data-modal][data-open="true"]')),
+            );
+        };
+
+        const closeModal = () => setModalOpen(false);
 
         pick.addEventListener('click', () => input.click());
 
@@ -219,21 +327,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             objectUrl = URL.createObjectURL(file);
-            dataInput.value = '';
-            applyButton.textContent = applyLabel;
-            editor.classList.remove('hidden');
-            state.zoom = 1;
-            state.offsetX = 0;
-            state.offsetY = 0;
-            zoomInput.value = '1';
 
+            const image = new Image();
             image.onload = () => {
-                state.width = image.naturalWidth;
-                state.height = image.naturalHeight;
-                render();
+                state.image = image;
+                reset();
+                setModalOpen(true);
+                window.requestAnimationFrame(render);
             };
-
             image.src = objectUrl;
+
+            // Allow picking the same file again later.
+            input.value = '';
         });
 
         zoomInput.addEventListener('input', () => {
@@ -241,16 +346,43 @@ document.addEventListener('DOMContentLoaded', () => {
             render();
         });
 
+        rotationInput.addEventListener('input', () => {
+            state.rotation = Number(rotationInput.value);
+            render();
+        });
+
+        modal.querySelectorAll('[data-crop-rotate]').forEach((button) => {
+            button.addEventListener('click', () => {
+                state.rotation = normalizeRotation(state.rotation + Number(button.dataset.cropRotate));
+                render();
+            });
+        });
+
+        modal.querySelectorAll('[data-crop-flip]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const axis = button.dataset.cropFlip;
+
+                if (axis === 'x') {
+                    state.flipX = !state.flipX;
+                } else {
+                    state.flipY = !state.flipY;
+                }
+
+                button.setAttribute('aria-pressed', String(axis === 'x' ? state.flipX : state.flipY));
+                render();
+            });
+        });
+
+        resetButton?.addEventListener('click', reset);
+
         viewport.addEventListener('pointerdown', (event) => {
-            if (!state.width) {
+            if (!state.image) {
                 return;
             }
 
             dragging = true;
-            startX = event.clientX;
-            startY = event.clientY;
-            originX = state.offsetX;
-            originY = state.offsetY;
+            lastX = event.clientX;
+            lastY = event.clientY;
             viewport.setPointerCapture(event.pointerId);
         });
 
@@ -259,9 +391,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            state.offsetX = originX + (event.clientX - startX);
-            state.offsetY = originY + (event.clientY - startY);
-            render();
+            const rect = canvas.getBoundingClientRect();
+            const factor = rect.width > 0 ? size / rect.width : 1;
+            const shape = geometry();
+            const nextX = state.offsetX + (event.clientX - lastX) * factor;
+            const nextY = state.offsetY + (event.clientY - lastY) * factor;
+
+            lastX = event.clientX;
+            lastY = event.clientY;
+
+            if (shape && covers(nextX, nextY, shape)) {
+                state.offsetX = nextX;
+                state.offsetY = nextY;
+                render();
+            }
         });
 
         const stopDragging = (event) => {
@@ -275,45 +418,35 @@ document.addEventListener('DOMContentLoaded', () => {
         viewport.addEventListener('pointerup', stopDragging);
         viewport.addEventListener('pointercancel', stopDragging);
 
+        modal.querySelectorAll('[data-crop-close]').forEach((closer) => {
+            closer.addEventListener('click', closeModal);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && modal.dataset.open === 'true') {
+                event.preventDefault();
+                event.stopPropagation();
+                closeModal();
+            }
+        }, true);
+
         applyButton.addEventListener('click', () => {
-            if (!state.width) {
+            if (!state.image) {
                 return;
             }
 
-            const currentScale = scale();
-            const viewWidth = viewport.clientWidth;
-            const viewHeight = viewport.clientHeight;
+            const output = document.createElement('canvas');
+            output.width = size;
+            output.height = size;
 
-            // Instagram-style crop: always a square taken from the visible
-            // area, never stretched to fit it.
-            const cropSize = Math.min(viewWidth, viewHeight);
-            const square = Math.min(state.width, state.height, cropSize / currentScale);
-            const left = (viewWidth - state.width * currentScale) / 2 + state.offsetX;
-            const top = (viewHeight - state.height * currentScale) / 2 + state.offsetY;
-            const sourceX = Math.min(Math.max(-left / currentScale, 0), state.width - square);
-            const sourceY = Math.min(Math.max(-top / currentScale, 0), state.height - square);
-            const output = 512;
+            const outputContext = output.getContext('2d');
+            outputContext.imageSmoothingEnabled = true;
+            outputContext.imageSmoothingQuality = 'high';
+            outputContext.fillStyle = '#ffffff';
+            outputContext.fillRect(0, 0, size, size);
+            drawInto(outputContext, size);
 
-            const canvas = document.createElement('canvas');
-            canvas.width = output;
-            canvas.height = output;
-
-            const context = canvas.getContext('2d');
-            context.imageSmoothingEnabled = true;
-            context.imageSmoothingQuality = 'high';
-            context.drawImage(
-                image,
-                sourceX,
-                sourceY,
-                square,
-                square,
-                0,
-                0,
-                output,
-                output,
-            );
-
-            const dataUrl = canvas.toDataURL('image/png');
+            const dataUrl = output.toDataURL('image/png');
             dataInput.value = dataUrl;
 
             if (preview) {
@@ -322,7 +455,232 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             initials?.classList.add('hidden');
-            applyButton.textContent = '✓';
+
+            if (removeInput) {
+                removeInput.checked = false;
+            }
+
+            pick.textContent = pick.dataset.labelChange || pick.textContent;
+            closeModal();
+        });
+    }
+
+    function initSearchableSelects() {
+        const selects = Array.from(document.querySelectorAll('select[data-searchable]'));
+
+        if (selects.length === 0) {
+            return;
+        }
+
+        const searchPlaceholder = document.body.dataset.searchPlaceholder || 'Search...';
+        let active = null;
+
+        const enhance = (select) => {
+            if (select.multiple || select.disabled) {
+                return;
+            }
+
+            const wrapper = document.createElement('div');
+            const autoWidth = select.classList.contains('!w-auto');
+            wrapper.className = `searchable-select relative ${autoWidth ? 'inline-block' : 'w-full'}`;
+
+            select.parentNode.insertBefore(wrapper, select);
+            wrapper.appendChild(select);
+
+            select.classList.add('sr-only');
+            select.setAttribute('tabindex', '-1');
+
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = `${select.className} flex items-center justify-between gap-2 text-left`;
+            trigger.setAttribute('aria-haspopup', 'listbox');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.innerHTML = '<span class="min-w-0 truncate" data-searchable-label></span><svg class="h-4 w-4 shrink-0 text-slate-400 transition-transform" data-searchable-chevron><use href="#i-chevron"/></svg>';
+
+            const panel = document.createElement('div');
+            panel.className = 'absolute left-0 z-50 mt-1 hidden w-full min-w-[14rem] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl';
+            panel.dataset.searchablePanel = 'true';
+            panel.innerHTML = `
+                <div class="border-b border-slate-100 p-2">
+                    <input type="search" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10" autocomplete="off">
+                </div>
+                <div class="max-h-56 overflow-y-auto p-1.5" role="listbox"></div>
+            `;
+
+            wrapper.appendChild(trigger);
+            wrapper.appendChild(panel);
+
+            const label = trigger.querySelector('[data-searchable-label]');
+            const chevron = trigger.querySelector('[data-searchable-chevron]');
+            const search = panel.querySelector('input[type="search"]');
+            const list = panel.querySelector('[role="listbox"]');
+            const options = Array.from(select.options).map((option, index) => ({
+                option,
+                index,
+                label: option.textContent.trim(),
+            }));
+
+            search.placeholder = searchPlaceholder;
+
+            const component = {
+                wrapper,
+                close: () => {
+                    panel.classList.add('hidden');
+                    trigger.setAttribute('aria-expanded', 'false');
+                    chevron.classList.remove('rotate-180');
+
+                    if (active === component) {
+                        active = null;
+                    }
+                },
+            };
+
+            const updateLabel = () => {
+                const selected = select.options[select.selectedIndex];
+                const text = selected?.textContent.trim() ?? '';
+
+                label.textContent = text;
+                label.classList.toggle('text-slate-400', ! select.value);
+                label.classList.toggle('text-slate-800', Boolean(select.value));
+            };
+
+            const choose = (option, index) => {
+                select.selectedIndex = index;
+                updateLabel();
+                component.close();
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+
+            const render = (query = '') => {
+                const needle = query.trim().toLowerCase();
+                const matches = options.filter((item) => item.label.toLowerCase().includes(needle));
+
+                list.innerHTML = '';
+
+                if (! matches.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'px-3 py-2 text-xs text-slate-400';
+                    empty.textContent = '—';
+                    list.appendChild(empty);
+
+                    return;
+                }
+
+                matches.forEach((item) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.setAttribute('role', 'option');
+                    button.className = 'block w-full truncate rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-slate-50 hover:text-slate-900';
+                    button.textContent = item.label;
+                    button.disabled = item.option.disabled;
+
+                    if (item.index === select.selectedIndex) {
+                        button.classList.add('bg-indigo-50', 'font-semibold', 'text-indigo-700');
+                        button.setAttribute('aria-selected', 'true');
+                    } else {
+                        button.setAttribute('aria-selected', 'false');
+                    }
+
+                    if (item.option.disabled) {
+                        button.classList.add('cursor-not-allowed', 'opacity-50');
+                    }
+
+                    button.addEventListener('click', () => choose(item.option, item.index));
+                    list.appendChild(button);
+                });
+            };
+
+            const open = () => {
+                if (active && active !== component) {
+                    active.close();
+                }
+
+                active = component;
+                panel.classList.remove('hidden');
+                trigger.setAttribute('aria-expanded', 'true');
+                chevron.classList.add('rotate-180');
+                search.value = '';
+                render();
+                search.focus({ preventScroll: true });
+            };
+
+            trigger.addEventListener('click', () => {
+                if (panel.classList.contains('hidden')) {
+                    open();
+                } else {
+                    component.close();
+                }
+            });
+
+            trigger.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    open();
+                }
+            });
+
+            search.addEventListener('input', () => render(search.value));
+
+            search.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    component.close();
+                    trigger.focus({ preventScroll: true });
+                }
+
+                if (event.key === 'Enter') {
+                    const first = list.querySelector('button:not(:disabled)');
+
+                    if (first) {
+                        event.preventDefault();
+                        first.click();
+                    }
+                }
+            });
+
+            select.addEventListener('change', updateLabel);
+            select.form?.addEventListener('reset', () => window.setTimeout(updateLabel, 0));
+
+            updateLabel();
+        };
+
+        selects.forEach(enhance);
+
+        document.addEventListener('click', (event) => {
+            if (active && ! active.wrapper.contains(event.target)) {
+                active.close();
+            }
+        });
+    }
+
+    function initMemberFilters() {
+        document.querySelectorAll('[data-member-filter]').forEach((input) => {
+            const list = document.getElementById(input.dataset.memberFilter);
+            const empty = document.querySelector(`[data-member-filter-empty="${input.dataset.memberFilter}"]`);
+
+            if (!list) {
+                return;
+            }
+
+            const items = Array.from(list.querySelectorAll('[data-member-filter-item]'));
+
+            const apply = () => {
+                const needle = input.value.trim().toLowerCase();
+                let visible = 0;
+
+                items.forEach((item) => {
+                    const matches = (item.dataset.memberName || '').toLowerCase().includes(needle);
+                    item.classList.toggle('hidden', !matches);
+
+                    if (matches) {
+                        visible++;
+                    }
+                });
+
+                empty?.classList.toggle('hidden', visible > 0);
+            };
+
+            input.addEventListener('input', apply);
         });
     }
 

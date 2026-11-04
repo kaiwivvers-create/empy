@@ -100,7 +100,7 @@
                                 @csrf
                                 <div class="min-w-[14rem] flex-1">
                                     <label class="label" for="project-member">{{ __('app.projects.add_member') }}</label>
-                                    <select id="project-member" name="employee_id" class="input" required>
+                                    <select id="project-member" name="employee_id" class="input" data-searchable required>
                                         @foreach ($memberOptions as $option)
                                             <option value="{{ $option->id }}">{{ $option->name }} — {{ $option->position?->name ?? '-' }}</option>
                                         @endforeach

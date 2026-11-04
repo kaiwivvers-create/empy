@@ -12,26 +12,68 @@ use Illuminate\View\View;
 
 class EmployeeGoalController extends Controller
 {
-    public function index(Request $request, Employee $employee): View
+    /**
+     * Sidebar KPI workspace: pick an employee, then see their targets.
+     */
+    public function overview(Request $request): View
+    {
+        $user = $request->user();
+
+        $employees = Employee::query()
+            ->active()
+            ->with(['department', 'position'])
+            ->withCount('goals')
+            ->when($user->isManager(), function ($query) use ($user) {
+                $employeeId = $user->employee?->id;
+
+                $query->where(fn ($inner) => $inner
+                    ->where('manager_id', $employeeId)
+                    ->orWhere('id', $employeeId ?? 0));
+            })
+            ->when($user->isEmployee(), fn ($query) => $query->whereKey($user->employee?->id ?? 0))
+            ->orderBy('name')
+            ->get();
+
+        $employee = null;
+
+        if ($request->filled('employee')) {
+            $employee = $employees->firstWhere('id', $request->integer('employee'));
+
+            abort_unless($employee, 404);
+        } elseif ($employees->count() === 1) {
+            $employee = $employees->first();
+        }
+
+        $goals = $employee
+            ? $employee->goals()
+                ->with('period')
+                ->when($request->filled('period'), fn ($query) => $query->where('period_id', $request->integer('period')))
+                ->orderByDesc('period_id')
+                ->orderBy('title')
+                ->get()
+            : collect();
+
+        return view('goals.overview', [
+            'employees' => $employees,
+            'employee' => $employee,
+            'goals' => $goals,
+            'periods' => EvaluationPeriod::orderByDesc('start_date')->get(),
+            'selectedPeriod' => $request->integer('period') ?: null,
+            'canManage' => $employee ? $this->canManage($request, $employee) : false,
+        ]);
+    }
+
+    /**
+     * The old per-employee goal page now lives inside the KPI workspace.
+     */
+    public function index(Request $request, Employee $employee): RedirectResponse
     {
         $this->authorizeView($request, $employee);
 
-        $periods = EvaluationPeriod::orderByDesc('start_date')->get();
-
-        $goals = $employee->goals()
-            ->with('period')
-            ->when($request->filled('period'), fn ($query) => $query->where('period_id', $request->integer('period')))
-            ->orderByDesc('period_id')
-            ->orderBy('title')
-            ->get();
-
-        return view('goals.index', [
-            'employee' => $employee->load(['department', 'position']),
-            'goals' => $goals,
-            'periods' => $periods,
-            'selectedPeriod' => $request->integer('period') ?: null,
-            'canManage' => $this->canManage($request, $employee),
-        ]);
+        return redirect()->route('kpi.index', array_filter([
+            'employee' => $employee->id,
+            'period' => $request->integer('period') ?: null,
+        ]));
     }
 
     public function store(Request $request, Employee $employee): RedirectResponse
@@ -48,7 +90,7 @@ class EmployeeGoalController extends Controller
 
         ActivityLogger::record('created', 'KPI target added for '.$employee->name.': '.$data['title'], $goal);
 
-        return redirect()->route('employees.goals.index', $employee)
+        return redirect()->route('kpi.index', ['employee' => $employee->id, 'period' => $data['period_id']])
             ->with('success', __('app.goals.success_created'));
     }
 
@@ -73,7 +115,7 @@ class EmployeeGoalController extends Controller
             ActivityLogger::changes($goal, $before),
         );
 
-        return redirect()->route('employees.goals.index', $employee)
+        return redirect()->route('kpi.index', ['employee' => $employee->id, 'period' => $data['period_id']])
             ->with('success', __('app.goals.success_updated'));
     }
 
@@ -90,7 +132,7 @@ class EmployeeGoalController extends Controller
 
         $goal->delete();
 
-        return redirect()->route('employees.goals.index', $employee)
+        return redirect()->route('kpi.index', ['employee' => $employee->id])
             ->with('success', __('app.goals.success_deleted'));
     }
 

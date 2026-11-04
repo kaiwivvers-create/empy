@@ -7,7 +7,7 @@
     <title>@yield('title', __('app.dashboard.title')) · {{ \App\Support\Brand::name() }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body>
+<body data-search-placeholder="{{ __('app.common.search_placeholder') }}">
 @php
     $user = auth()->user();
     $locale = app()->getLocale();
@@ -92,16 +92,33 @@
         @endif
 
         @if ($can('evaluations'))
-            <a href="{{ route('evaluations.index') }}" class="nav-link {{ request()->routeIs('evaluations.index') || request()->routeIs('evaluations.show') || request()->routeIs('evaluations.edit') ? 'nav-link-active' : '' }}">
-                <svg class="h-5 w-5"><use href="#i-clipboard"/></svg>
-                {{ __('app.nav.evaluations') }}
-            </a>
-            @unless ($user->isEmployee())
-                <a href="{{ route('evaluations.team') }}" class="nav-link {{ request()->routeIs('evaluations.team') ? 'nav-link-active' : '' }}">
+            @if ($user->isEmployee())
+                <a href="{{ route('evaluations.index') }}" class="nav-link {{ request()->routeIs('evaluations.index') || request()->routeIs('evaluations.show') || request()->routeIs('evaluations.edit') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5"><use href="#i-clipboard"/></svg>
+                    {{ __('app.nav.evaluations') }}
+                </a>
+            @else
+                {{-- Admins and managers are never evaluated themselves; their
+                     evaluation work happens in the team workspace. --}}
+                <a href="{{ route('evaluations.team') }}" class="nav-link {{ request()->routeIs('evaluations.*') ? 'nav-link-active' : '' }}">
                     <svg class="h-5 w-5"><use href="#i-users"/></svg>
                     {{ __('app.team.title') }}
                 </a>
-            @endunless
+            @endif
+        @endif
+
+        @if ($can('kpi'))
+            <a href="{{ route('kpi.index') }}" class="nav-link {{ request()->routeIs('kpi.*') || request()->routeIs('employees.goals.*') ? 'nav-link-active' : '' }}">
+                <svg class="h-5 w-5"><use href="#i-chart"/></svg>
+                {{ __('app.nav.kpi') }}
+            </a>
+        @endif
+
+        @if ($can('projects'))
+            <a href="{{ route('projects.index') }}" class="nav-link {{ request()->routeIs('projects.*') ? 'nav-link-active' : '' }}">
+                <svg class="h-5 w-5"><use href="#i-folder"/></svg>
+                {{ __('app.nav.projects') }}
+            </a>
         @endif
 
         @if ($can('feedback'))

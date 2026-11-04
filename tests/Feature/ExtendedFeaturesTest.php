@@ -109,6 +109,67 @@ class ExtendedFeaturesTest extends TestCase
         $this->assertSame(100.0, (float) $evaluation->peerScore());
     }
 
+    public function test_only_non_employee_roles_can_send_feedback_requests(): void
+    {
+        $evaluation = $this->submittedEvaluation();
+
+        $sendLabel = __('app.feedback.send_title');
+
+        $this->actingAs($this->manager)
+            ->get('/feedback')
+            ->assertOk()
+            ->assertSee($sendLabel)
+            ->assertSee('data-modal-open="feedback-request-modal"', false)
+            ->assertSee('data-feedback-period-filter', false)
+            ->assertSee('data-period="'.$evaluation->period_id.'"', false)
+            ->assertSee('name="reviewer_id" value="'.$this->manager->id.'"', false)
+            ->assertSee('data-feedback-reviewer-self', false)
+            ->assertSee('name="evaluation_id"', false);
+
+        $this->actingAs($this->employeeUser)
+            ->get('/feedback')
+            ->assertOk()
+            ->assertDontSee($sendLabel)
+            ->assertDontSee('data-modal-open="feedback-request-modal"', false);
+
+        $payload = [
+            'evaluation_id' => $evaluation->id,
+            'reviewer_id' => $this->reviewerUser->id,
+            'relationship' => 'peer',
+        ];
+
+        $this->actingAs($this->employeeUser)
+            ->post('/feedback/requests', $payload)
+            ->assertForbidden();
+
+        $this->actingAs($this->manager)
+            ->post('/feedback/requests', $payload)
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('peer_feedbacks', [
+            'evaluation_id' => $evaluation->id,
+            'reviewer_id' => $this->reviewerUser->id,
+        ]);
+    }
+
+    public function test_feedback_request_defaults_reviewer_to_the_sender(): void
+    {
+        $evaluation = $this->submittedEvaluation();
+
+        $this->actingAs($this->manager)
+            ->post('/feedback/requests', [
+                'evaluation_id' => $evaluation->id,
+                'reviewer_id' => $this->manager->id,
+                'relationship' => 'peer',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('peer_feedbacks', [
+            'evaluation_id' => $evaluation->id,
+            'reviewer_id' => $this->manager->id,
+        ]);
+    }
+
     public function test_uninvited_user_cannot_submit_peer_feedback(): void
     {
         $evaluation = $this->submittedEvaluation();
@@ -135,9 +196,23 @@ class ExtendedFeaturesTest extends TestCase
 
         $this->actingAs($this->manager)
             ->post("/employees/{$this->subordinate->id}/goals", $payload)
-            ->assertRedirect("/employees/{$this->subordinate->id}/goals");
+            ->assertRedirect(route('kpi.index', [
+                'employee' => $this->subordinate->id,
+                'period' => $this->period->id,
+            ]));
 
         $this->assertDatabaseHas('employee_goals', ['title' => 'Close 20 deals', 'achievement_value' => 15]);
+
+        $this->actingAs($this->manager)
+            ->get(route('kpi.index', ['employee' => $this->subordinate->id]))
+            ->assertOk()
+            ->assertSee('Close 20 deals')
+            ->assertSee($this->subordinate->name);
+
+        // The old per-employee goal screen is folded into the KPI workspace.
+        $this->actingAs($this->manager)
+            ->get(route('employees.goals.index', $this->subordinate))
+            ->assertRedirect(route('kpi.index', ['employee' => $this->subordinate->id]));
 
         $this->actingAs($this->employeeUser)
             ->post("/employees/{$this->subordinate->id}/goals", [...$payload, 'title' => 'Unauthorized'])

@@ -82,7 +82,8 @@ class UserController extends Controller
 
         ActivityLogger::record('created', 'User account created: '.$user->email, $user);
 
-        return redirect()->route('users.index')->with('success', __('app.users.success_created'));
+        return $this->redirectToIndex('users.index', ['search', 'role', 'page'])
+            ->with('success', __('app.users.success_created'));
     }
 
     public function edit(Request $request, User $user): RedirectResponse
@@ -107,9 +108,9 @@ class UserController extends Controller
             ]);
         }
 
-        if ($user->isSuperAdmin() && $data['role'] !== User::ROLE_SUPER_ADMIN && $this->isLastSuperAdmin($user)) {
+        if ($user->isSuperAdmin() && $data['role'] !== User::ROLE_SUPER_ADMIN) {
             throw ValidationException::withMessages([
-                'role' => __('app.users.cannot_remove_last_super_admin'),
+                'role' => __('app.users.cannot_demote_super_admin'),
             ]);
         }
 
@@ -145,7 +146,8 @@ class UserController extends Controller
             ActivityLogger::changes($user, $before),
         );
 
-        return redirect()->route('users.index')->with('success', __('app.users.success_updated'));
+        return $this->redirectToIndex('users.index', ['search', 'role', 'page'])
+            ->with('success', __('app.users.success_updated'));
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
@@ -164,7 +166,8 @@ class UserController extends Controller
 
         $user->delete();
 
-        return redirect()->route('users.index')->with('success', __('app.users.success_deleted'));
+        return $this->redirectToIndex('users.index', ['search', 'role', 'page'])
+            ->with('success', __('app.users.success_deleted'));
     }
 
     /**

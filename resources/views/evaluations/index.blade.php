@@ -5,6 +5,7 @@
 @php
     $user = auth()->user();
     $canCreate = $user->isAdmin() || $user->isManager();
+    $hasFilters = collect($filters ?? [])->contains(fn ($value) => filled($value));
 @endphp
 
 @section('content')
@@ -37,20 +38,20 @@
                             <input type="search" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="{{ __('app.common.search_placeholder') }}" class="input pl-9">
                         </div>
                     </div>
-                    <select name="period" class="input">
+                    <select name="period" class="input" data-searchable>
                         <option value="">{{ __('app.common.all') }} · {{ __('app.common.period') }}</option>
                         @foreach ($periods as $period)
                             <option value="{{ $period->id }}" @selected(($filters['period'] ?? '') == $period->id)>{{ $period->name }}</option>
                         @endforeach
                     </select>
-                    <select name="department" class="input">
+                    <select name="department" class="input" data-searchable>
                         <option value="">{{ __('app.common.all') }} · {{ __('app.common.department') }}</option>
                         @foreach ($departments as $department)
                             <option value="{{ $department->id }}" @selected(($filters['department'] ?? '') == $department->id)>{{ $department->name }}</option>
                         @endforeach
                     </select>
                     <div class="flex gap-2">
-                        <select name="status" class="input">
+                        <select name="status" class="input" data-searchable>
                             <option value="">{{ __('app.common.all') }} · {{ __('app.common.status') }}</option>
                             <option value="draft" @selected(($filters['status'] ?? '') === 'draft')>{{ __('app.evaluations.statuses.draft') }}</option>
                             <option value="submitted" @selected(($filters['status'] ?? '') === 'submitted')>{{ __('app.evaluations.statuses.submitted') }}</option>
@@ -90,8 +91,12 @@
                         <tr class="table-row">
                             <td>
                                 <div class="flex items-center gap-3">
-                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
-                                        {{ $evaluation->employee?->initials() ?? '?' }}
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
+                                        @if ($evaluation->employee?->photoUrl())
+                                            <img src="{{ $evaluation->employee->photoUrl() }}" alt="" class="h-full w-full object-cover">
+                                        @else
+                                            {{ $evaluation->employee?->initials() ?? '?' }}
+                                        @endif
                                     </span>
                                     <div>
                                         <p class="font-semibold text-slate-800">{{ $evaluation->employee?->name }}</p>
@@ -147,7 +152,22 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="{{ $user->isEmployee() ? 5 : 6 }}" class="empty-state">{{ __('app.evaluations.empty') }}</td></tr>
+                        <tr>
+                            <td colspan="{{ $user->isEmployee() ? 5 : 6 }}" class="empty-state">
+                                <p>{{ $hasFilters ? __('app.common.no_results') : __('app.evaluations.empty') }}</p>
+                                <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                                    @if ($hasFilters)
+                                        <a href="{{ route('evaluations.index') }}" class="btn-secondary">{{ __('app.actions.reset') }}</a>
+                                    @endif
+                                    @if ($canCreate)
+                                        <button type="button" class="btn-primary" data-modal-open="evaluation-create">
+                                            <svg class="h-4 w-4"><use href="#i-plus"/></svg>
+                                            {{ __('app.evaluations.add') }}
+                                        </button>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>

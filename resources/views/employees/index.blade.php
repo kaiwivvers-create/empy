@@ -3,6 +3,10 @@
 @section('title', $isManagerView ? __('app.employees.team') : __('app.employees.title'))
 
 @section('content')
+    @php
+        $hasFilters = collect($filters ?? [])->contains(fn ($value) => filled($value));
+    @endphp
+
     <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">
@@ -30,6 +34,9 @@
     </div>
 
     <div class="card">
+        {{-- An employee only ever sees their own row, so filters cannot narrow
+             the list any further. --}}
+        @unless (auth()->user()->isEmployee())
         <div class="card-body">
             <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 @if ($showTrashed)
@@ -41,14 +48,14 @@
                         <input type="search" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="{{ __('app.common.search_placeholder') }}" class="input pl-9">
                     </div>
                 </div>
-                <select name="department" class="input">
+                <select name="department" class="input" data-searchable>
                     <option value="">{{ __('app.common.all') }} · {{ __('app.common.department') }}</option>
                     @foreach ($departments as $department)
                         <option value="{{ $department->id }}" @selected(($filters['department'] ?? '') == $department->id)>{{ $department->name }}</option>
                     @endforeach
                 </select>
                 <div class="flex gap-2">
-                    <select name="status" class="input">
+                    <select name="status" class="input" data-searchable>
                         <option value="">{{ __('app.common.all') }} · {{ __('app.common.status') }}</option>
                         <option value="active" @selected(($filters['status'] ?? '') === 'active')>{{ __('app.common.active') }}</option>
                         <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>{{ __('app.common.inactive') }}</option>
@@ -57,6 +64,7 @@
                 </div>
             </form>
         </div>
+        @endunless
 
         <div class="overflow-x-auto">
             <table class="table-stable w-full min-w-[68rem]">
@@ -121,7 +129,9 @@
                                                 <button type="submit" class="btn-ghost text-emerald-600 hover:bg-emerald-50">{{ __('app.common.restore') }}</button>
                                             </form>
                                         @else
-                                            <a href="{{ route('employees.goals.index', $employee) }}" class="btn-ghost">{{ __('app.employees.view_goals') }}</a>
+                                            @if (\App\Support\PageAccess::allows(auth()->user(), 'kpi'))
+                                                <a href="{{ route('kpi.index', ['employee' => $employee->id]) }}" class="btn-ghost">{{ __('app.employees.view_goals') }}</a>
+                                            @endif
                                             <button type="button" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600" title="{{ __('app.actions.edit') }}"
                                                     data-modal-open="employee-edit-{{ $employee->id }}">
                                                 <svg class="h-4 w-4"><use href="#i-pencil"/></svg>
@@ -139,7 +149,22 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="empty-state">{{ __('app.employees.empty') }}</td></tr>
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <p>{{ $hasFilters ? __('app.common.no_results') : __('app.employees.empty') }}</p>
+                                <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                                    @if ($hasFilters)
+                                        <a href="{{ route('employees.index', $showTrashed ? ['trashed' => 1] : []) }}" class="btn-secondary">{{ __('app.actions.reset') }}</a>
+                                    @endif
+                                    @if (auth()->user()->isAdmin() && ! $showTrashed)
+                                        <button type="button" class="btn-primary" data-modal-open="employee-create">
+                                            <svg class="h-4 w-4"><use href="#i-plus"/></svg>
+                                            {{ __('app.employees.add') }}
+                                        </button>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>

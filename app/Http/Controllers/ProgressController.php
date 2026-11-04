@@ -27,6 +27,7 @@ class ProgressController extends Controller
 
         $employees = Employee::query()
             ->active()
+            ->evaluable()
             ->with(['department', 'position', 'manager'])
             ->when(! $user->isAdmin(), fn ($query) => $query->where('manager_id', $user->employee?->id))
             ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))

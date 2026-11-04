@@ -27,7 +27,7 @@ class ReminderSender
             ->active()
             ->whereNotNull('user_id')
             ->whereHas('subordinates')
-            ->with(['user', 'subordinates' => fn ($query) => $query->active()])
+            ->with(['user', 'subordinates' => fn ($query) => $query->active()->evaluable()])
             ->get();
 
         $sent = collect();

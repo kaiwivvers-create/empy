@@ -253,4 +253,30 @@ class ProjectsTest extends TestCase
 
         $this->assertFalse($this->sharedProject->fresh()->isMember($this->secondSubordinate));
     }
+
+    public function test_project_actions_preserve_index_filters(): void
+    {
+        $filtered = route('projects.index', ['search' => 'Website', 'status' => Project::STATUS_ACTIVE]);
+
+        $this->actingAs($this->managerA)
+            ->from($filtered)
+            ->post(route('projects.store'), [
+                'name' => 'Filtered Project',
+                'status' => Project::STATUS_ACTIVE,
+            ])
+            ->assertRedirect($filtered);
+
+        $this->actingAs($this->managerA)
+            ->from($filtered)
+            ->put(route('projects.update', $this->sharedProject), [
+                'name' => 'Website Refresh Updated',
+                'status' => Project::STATUS_ACTIVE,
+            ])
+            ->assertRedirect($filtered);
+
+        $this->actingAs($this->managerA)
+            ->from($filtered)
+            ->delete(route('projects.destroy', $this->sharedProject))
+            ->assertRedirect($filtered);
+    }
 }

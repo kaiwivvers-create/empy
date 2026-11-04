@@ -21,14 +21,14 @@
                         <input type="search" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="{{ __('app.common.search_placeholder') }}" class="input pl-9">
                     </div>
                 </div>
-                <select name="action" class="input">
+                <select name="action" class="input" data-searchable>
                     <option value="">{{ __('app.common.all') }} · {{ __('app.activity.action') }}</option>
                     @foreach ($actions as $action)
                         <option value="{{ $action }}" @selected(($filters['action'] ?? '') === $action)>{{ $action }}</option>
                     @endforeach
                 </select>
                 <div class="flex gap-2">
-                    <select name="user" class="input">
+                    <select name="user" class="input" data-searchable>
                         <option value="">{{ __('app.common.all') }} · {{ __('app.activity.user') }}</option>
                         @foreach ($users as $user)
                             <option value="{{ $user->id }}" @selected(($filters['user'] ?? '') == $user->id)>{{ $user->name }}</option>

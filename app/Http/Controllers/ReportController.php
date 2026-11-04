@@ -42,6 +42,7 @@ class ReportController extends Controller
 
         $evaluations = Evaluation::with('evaluator')
             ->where('status', 'submitted')
+            ->whereIn('employee_id', Employee::active()->evaluable()->select('id'))
             ->when($period, fn ($query) => $query->where('period_id', $period->id))
             ->get();
 
@@ -176,6 +177,7 @@ class ReportController extends Controller
 
         $scopeEmployees = Employee::query()
             ->active()
+            ->evaluable()
             ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId));
 
         $scopeIds = (clone $scopeEmployees)->pluck('id');
@@ -183,6 +185,7 @@ class ReportController extends Controller
         $evaluations = Evaluation::query()
             ->with(['employee.department', 'employee.position', 'period', 'evaluator'])
             ->where('status', 'submitted')
+            ->whereIn('employee_id', $scopeIds)
             ->when($period, fn ($query) => $query->where('period_id', $period->id))
             ->when($departmentId, fn ($query) => $query->whereHas('employee', fn ($employee) => $employee->where('department_id', $departmentId)))
             ->orderByDesc('final_score')

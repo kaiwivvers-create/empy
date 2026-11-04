@@ -56,8 +56,11 @@
         @forelse ($departments as $department)
             @php
                 $headId = $department->head_id;
-                // A manager only appears inside a department box when they lead it.
-                $members = $department->employees->reject(fn ($member) => $member->id !== $headId && $member->isManagerAccount());
+                // The head gets their own card above, and other leaders are
+                // already shown elsewhere in the chart.
+                $members = $department->employees->reject(
+                    fn ($member) => $member->id === $headId || $member->isManagerAccount()
+                );
             @endphp
             <div class="card">
                 <div class="card-header">
@@ -87,8 +90,12 @@
 
                 @if ($department->head)
                     <div class="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3">
-                        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">
-                            {{ $department->head->initials() }}
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-500 text-xs font-bold text-white">
+                            @if ($department->head->photoUrl())
+                                <img src="{{ $department->head->photoUrl() }}" alt="{{ $department->head->name }}" class="h-full w-full object-cover">
+                            @else
+                                {{ $department->head->initials() }}
+                            @endif
                         </span>
                         <div class="min-w-0">
                             <p class="truncate text-sm font-bold text-slate-800">{{ $department->head->name }}</p>
@@ -111,11 +118,9 @@
                                 <p class="truncate text-sm font-semibold text-slate-800">{{ $member->name }}</p>
                                 <p class="truncate text-xs text-slate-400">{{ $member->position?->name ?? '-' }}</p>
                             </div>
-                            @if ($member->id === $headId)
-                                <span class="badge-amber shrink-0">{{ __('app.organization.head') }}</span>
-                            @elseif ($headId)
+                            @if ($headId && $department->head)
                                 {{-- Department members always report to their head. --}}
-                                <span class="shrink-0 text-xs font-medium text-slate-500">{{ $department->head?->name }}</span>
+                                <span class="shrink-0 text-xs font-medium text-slate-500">{{ $department->head->name }}</span>
                             @elseif ($canEdit)
                                 <form method="POST" action="{{ route('organization.employees.manager', $member) }}" class="flex shrink-0 items-center gap-1">
                                     @csrf

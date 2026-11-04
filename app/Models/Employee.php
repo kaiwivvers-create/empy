@@ -83,12 +83,52 @@ class Employee extends Model
 
     public function photoUrl(): ?string
     {
-        return $this->photo_path ? asset('storage/'.$this->photo_path) : null;
+        // Account avatars are a valid fallback for employees whose photo was
+        // uploaded before the employee record existed.
+        $path = $this->photo_path ?: $this->user?->avatar_path;
+
+        return $path ? asset('storage/'.$path) : null;
+    }
+
+    protected static function booted(): void
+    {
+        // The super admin's employee row is private to the super admin.
+        static::addGlobalScope('visible_to_viewer', function (Builder $builder) {
+            $user = auth()->user();
+
+            if (! $user || $user->isSuperAdmin()) {
+                return;
+            }
+
+            $hiddenUserIds = User::query()
+                ->where('role', User::ROLE_SUPER_ADMIN)
+                ->select('id');
+
+            $builder->where(function (Builder $query) use ($hiddenUserIds) {
+                $query->whereNull('user_id')->orWhereNotIn('user_id', $hiddenUserIds);
+            });
+        });
     }
 
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');
+    }
+
+    /**
+     * Employees who are actually evaluated: admins and managers are excluded.
+     */
+    public function scopeEvaluable(Builder $query): Builder
+    {
+        $leadershipRoles = Role::allCached()
+            ->filter(fn (Role $role) => in_array($role->base, [User::ROLE_ADMIN, User::ROLE_MANAGER], true))
+            ->pluck('name')
+            ->all();
+
+        return $query->where(function (Builder $inner) use ($leadershipRoles) {
+            $inner->whereNull('user_id')
+                ->orWhereHas('user', fn (Builder $user) => $user->whereNotIn('role', $leadershipRoles));
+        });
     }
 
     /** Employees this user is allowed to evaluate. */
@@ -118,7 +158,7 @@ class Employee extends Model
 
     public function initials(): string
     {
-        $parts = preg_split('/\s+/', trim($this->name)) ?: [];
+        $parts = preg_split('/\s+/', trim((string) $this->name)) ?: [];
         $initials = '';
 
         foreach (array_slice($parts, 0, 2) as $part) {

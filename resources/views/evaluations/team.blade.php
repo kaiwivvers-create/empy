@@ -13,7 +13,9 @@
             <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('app.team.title') }}</h2>
             <p class="mt-1 max-w-3xl text-sm text-slate-500">{{ __('app.team.subtitle') }}</p>
         </div>
-        <a href="{{ route('evaluations.index') }}" class="btn-secondary">{{ __('app.team.all_evaluations') }}</a>
+        @if (\App\Support\PageAccess::allows(auth()->user(), 'reports'))
+            <a href="{{ route('reports.index') }}" class="btn-secondary">{{ __('app.nav.reports') }}</a>
+        @endif
     </div>
 
     <div class="card mb-5">
@@ -21,7 +23,7 @@
             <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <label class="label" for="team-period">{{ __('app.team.when') }}</label>
-                    <select id="team-period" name="period" class="input" onchange="this.form.submit()">
+                    <select id="team-period" name="period" class="input" data-searchable onchange="this.form.submit()">
                         @foreach ($periods as $item)
                             <option value="{{ $item->id }}" @selected($period?->id === $item->id)>
                                 {{ $item->name }} · {{ __('app.periods.statuses.'.$item->status) }}
@@ -31,7 +33,7 @@
                 </div>
                 <div>
                     <label class="label" for="team-department">{{ __('app.team.where') }}</label>
-                    <select id="team-department" name="department" class="input" onchange="this.form.submit()">
+                    <select id="team-department" name="department" class="input" data-searchable onchange="this.form.submit()">
                         <option value="">{{ __('app.team.all_departments') }}</option>
                         @foreach ($departments as $department)
                             <option value="{{ $department->id }}" @selected(($filters['department'] ?? '') == $department->id)>{{ $department->name }}</option>

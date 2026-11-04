@@ -2,7 +2,7 @@
     $helpPage = match (true) {
         request()->routeIs('dashboard') => 'dashboard',
         request()->routeIs('employees.import', 'employees.import.*') => 'import',
-        request()->routeIs('employees.goals.*') => 'goals',
+        request()->routeIs('employees.goals.*', 'kpi.*') => 'goals',
         request()->routeIs('employees.show') => 'employee_detail',
         request()->routeIs('employees.*') => 'employees',
         request()->routeIs('evaluations.team') => 'team',

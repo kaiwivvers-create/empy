@@ -60,6 +60,18 @@ class User extends Authenticatable
         ];
     }
 
+    protected static function booted(): void
+    {
+        // A super admin account can never be demoted, through any code path.
+        static::saving(function (User $user) {
+            if ($user->exists
+                && $user->getOriginal('role') === self::ROLE_SUPER_ADMIN
+                && $user->role !== self::ROLE_SUPER_ADMIN) {
+                $user->role = self::ROLE_SUPER_ADMIN;
+            }
+        });
+    }
+
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class);
@@ -117,7 +129,7 @@ class User extends Authenticatable
     public function avatarInitials(): string
     {
         $source = $this->employee?->name ?? $this->name;
-        $parts = preg_split('/\s+/', trim($source)) ?: [];
+        $parts = preg_split('/\s+/', trim((string) $source)) ?: [];
         $initials = '';
 
         foreach (array_slice($parts, 0, 2) as $part) {

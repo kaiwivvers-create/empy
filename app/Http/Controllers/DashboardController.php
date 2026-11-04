@@ -49,9 +49,11 @@ class DashboardController extends Controller
     private function adminData(?EvaluationPeriod $period): array
     {
         $totalEmployees = Employee::active()->count();
+        $evaluationTargets = Employee::active()->evaluable()->count();
+        $targetIds = Employee::active()->evaluable()->pluck('id');
 
         $submitted = $period
-            ? Evaluation::where('period_id', $period->id)->where('status', 'submitted')
+            ? Evaluation::where('period_id', $period->id)->where('status', 'submitted')->whereIn('employee_id', $targetIds)
             : Evaluation::whereRaw('1 = 0');
 
         $evaluated = (clone $submitted)->count();
@@ -100,8 +102,9 @@ class DashboardController extends Controller
 
         return [
             'totalEmployees' => $totalEmployees,
+            'evaluationTargets' => $evaluationTargets,
             'evaluated' => $evaluated,
-            'pending' => max($totalEmployees - $evaluated, 0),
+            'pending' => max($evaluationTargets - $evaluated, 0),
             'averageScore' => round($average, 1),
             'departmentScores' => $departmentScores,
             'trend' => $trend,
@@ -118,7 +121,7 @@ class DashboardController extends Controller
     private function managerData(?Employee $manager, ?EvaluationPeriod $period): array
     {
         $team = $manager
-            ? Employee::active()->where('manager_id', $manager->id)->get()
+            ? Employee::active()->evaluable()->where('manager_id', $manager->id)->get()
             : collect();
 
         $evaluations = $period

@@ -175,8 +175,7 @@ class EmployeeController extends Controller
 
         $employee->delete();
 
-        return redirect()
-            ->route('employees.index')
+        return $this->redirectToIndex('employees.index', ['search', 'department', 'status', 'trashed', 'page'])
             ->with('success', __('app.employees.success_deleted'));
     }
 

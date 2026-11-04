@@ -28,12 +28,26 @@ class AccessController extends Controller
         ]);
 
         $permissions = $data['permissions'] ?? [];
+        $defaults = PageAccess::defaults();
 
         foreach (PageAccess::matrixRoles() as $role) {
             foreach (array_keys(PageAccess::pages()) as $page) {
+                $allowed = (bool) ($permissions[$role][$page] ?? false);
+
+                // Only store values that differ from the defaults, so later
+                // default changes still reach roles without a custom choice.
+                if ($allowed === (bool) ($defaults[$page][$role] ?? false)) {
+                    RolePermission::query()
+                        ->where('role', $role)
+                        ->where('permission', $page)
+                        ->delete();
+
+                    continue;
+                }
+
                 RolePermission::updateOrCreate(
                     ['role' => $role, 'permission' => $page],
-                    ['is_allowed' => (bool) ($permissions[$role][$page] ?? false)],
+                    ['is_allowed' => $allowed],
                 );
             }
         }

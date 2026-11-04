@@ -60,9 +60,7 @@
                     @if ($brandLogo)
                         <img src="{{ $brandLogo }}" alt="" class="h-10 w-10 shrink-0 rounded-xl object-contain">
                     @else
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-sm font-extrabold text-indigo-200">
-                            {{ mb_strtoupper(mb_substr($brandName, 0, 1)) }}
-                        </span>
+                        <div></div>
                     @endif
                     <span class="min-w-0">
                         <span class="block truncate text-sm font-extrabold tracking-tight text-white">{{ $brandName }}</span>

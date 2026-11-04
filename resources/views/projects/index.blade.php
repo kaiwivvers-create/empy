@@ -3,6 +3,10 @@
 @section('title', __('app.projects.title'))
 
 @section('content')
+    @php
+        $hasFilters = collect($filters ?? [])->contains(fn ($value) => filled($value));
+    @endphp
+
     <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('app.projects.title') }}</h2>
@@ -26,7 +30,7 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <select name="status" class="input">
+                    <select name="status" class="input" data-searchable>
                         <option value="">{{ __('app.common.all') }} · {{ __('app.projects.status') }}</option>
                         @foreach (\App\Models\Project::statuses() as $status)
                             <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ __('app.projects.statuses.'.$status) }}</option>
@@ -40,9 +44,20 @@
 
     @if ($projects->isEmpty())
         <div class="card">
-            <div class="empty-state">
+            <div class="empty-state flex flex-col items-center gap-2">
                 <svg class="h-8 w-8 text-slate-300"><use href="#i-folder"/></svg>
-                {{ __('app.projects.empty') }}
+                <p>{{ $hasFilters ? __('app.common.no_results') : __('app.projects.empty') }}</p>
+                <div class="mt-1 flex flex-wrap items-center justify-center gap-2">
+                    @if ($hasFilters)
+                        <a href="{{ route('projects.index') }}" class="btn-secondary">{{ __('app.actions.reset') }}</a>
+                    @endif
+                    @if ($canCreate)
+                        <button type="button" class="btn-primary" data-modal-open="project-create">
+                            <svg class="h-4 w-4"><use href="#i-plus"/></svg>
+                            {{ __('app.projects.add') }}
+                        </button>
+                    @endif
+                </div>
             </div>
         </div>
     @else
@@ -130,15 +145,27 @@
                 <div>
                     <label class="label">{{ __('app.projects.members') }}</label>
                     <p class="mb-2 text-xs text-slate-500">{{ __('app.projects.member_hint') }}</p>
-                    <div class="grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2">
+                    <div class="relative mb-2">
+                        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"><use href="#i-search"/></svg>
+                        <input type="search" data-member-filter="project-create-members" placeholder="{{ __('app.common.search_placeholder') }}" class="input pl-9" autocomplete="off">
+                    </div>
+                    <div id="project-create-members" class="grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2">
                         @foreach ($memberOptions as $option)
-                            <label class="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                            <label data-member-filter-item data-member-name="{{ $option->name }} {{ $option->position?->name }}" class="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 text-[10px] font-bold text-indigo-600">
+                                    @if ($option->photoUrl())
+                                        <img src="{{ $option->photoUrl() }}" alt="" class="h-full w-full object-cover">
+                                    @else
+                                        {{ $option->initials() }}
+                                    @endif
+                                </span>
                                 <input type="checkbox" name="members[]" value="{{ $option->id }}" @checked(collect(old('members', []))->contains($option->id)) class="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600">
                                 <span class="min-w-0 flex-1 truncate">{{ $option->name }}</span>
                                 <span class="shrink-0 text-xs text-slate-400">{{ $option->position?->name }}</span>
                             </label>
                         @endforeach
                     </div>
+                    <p data-member-filter-empty="project-create-members" class="hidden px-1 py-2 text-xs text-slate-400">{{ __('app.common.no_results') }}</p>
                 </div>
             @endif
         </x-modal-form>

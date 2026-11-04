@@ -24,7 +24,7 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <select name="role" class="input">
+                    <select name="role" class="input" data-searchable>
                         <option value="">{{ __('app.common.all') }} · {{ __('app.users.role') }}</option>
                         @foreach ($roleOptions as $role => $label)
                             <option value="{{ $role }}" @selected(($filters['role'] ?? '') === $role)>{{ $label }}</option>

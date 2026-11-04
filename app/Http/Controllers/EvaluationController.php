@@ -24,6 +24,7 @@ class EvaluationController extends Controller
 
         $evaluations = Evaluation::query()
             ->with(['employee.department', 'employee.position', 'period', 'evaluator'])
+            ->whereHas('employee', fn ($employee) => $employee->evaluable())
             ->when($user->isManager(), function ($query) use ($user) {
                 $query->where(fn ($inner) => $inner
                     ->where('evaluator_id', $user->id)
@@ -259,6 +260,7 @@ class EvaluationController extends Controller
             'evaluation' => $evaluation,
             'scores' => $evaluation->scores()->with('criterion')->get(),
             'reviewerOptions' => $reviewerOptions,
+            'canRequestFeedback' => $evaluation->userCanManageFeedback(auth()->user()),
         ]);
     }
 
@@ -419,7 +421,7 @@ class EvaluationController extends Controller
 
         $evaluation->delete();
 
-        return redirect()->route('evaluations.index')
+        return $this->redirectToIndex('evaluations.index', ['search', 'period', 'department', 'status', 'page'])
             ->with('success', __('app.evaluations.success_deleted'));
     }
 
@@ -427,6 +429,7 @@ class EvaluationController extends Controller
     {
         return Employee::query()
             ->active()
+            ->evaluable()
             ->with(['department', 'position', 'manager'])
             ->when(! $user->isAdmin(), fn ($query) => $query->where('manager_id', $user->employee?->id))
             ->orderBy('name')

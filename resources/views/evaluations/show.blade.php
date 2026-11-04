@@ -10,6 +10,7 @@
 @php
     $canManage = (auth()->user()->isAdmin() || $evaluation->evaluator_id === auth()->id())
         && (auth()->user()->isAdmin() || $evaluation->period?->isOpenForEditing());
+    $canRequestFeedback = $canRequestFeedback ?? $canManage;
     $canEditPeriod = auth()->user()->isAdmin()
         && \App\Support\PageAccess::allows(auth()->user(), 'periods')
         && $evaluation->period;
@@ -17,7 +18,7 @@
 
 @section('content')
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <a href="{{ route('evaluations.index') }}" class="btn-secondary">
+        <a href="{{ auth()->user()->isEmployee() ? route('evaluations.index') : route('evaluations.team') }}" class="btn-secondary">
             <svg class="h-4 w-4 rotate-180"><use href="#i-arrow"/></svg>
             {{ __('app.actions.back') }}
         </a>
@@ -54,8 +55,12 @@
             <div class="card">
                 <div class="card-body">
                     <div class="flex flex-wrap items-center gap-4">
-                        <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-base font-extrabold text-indigo-600">
-                            {{ $evaluation->employee?->initials() ?? '?' }}
+                        <span class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-indigo-50 text-base font-extrabold text-indigo-600">
+                            @if ($evaluation->employee?->photoUrl())
+                                <img src="{{ $evaluation->employee->photoUrl() }}" alt="{{ $evaluation->employee->name }}" class="h-full w-full object-cover">
+                            @else
+                                {{ $evaluation->employee?->initials() ?? '?' }}
+                            @endif
                         </span>
                         <div class="min-w-0 flex-1">
                             <h2 class="text-xl font-extrabold text-slate-900">{{ $evaluation->employee?->name }}</h2>
@@ -193,7 +198,7 @@
                                 <div class="flex flex-wrap items-center justify-between gap-2">
                                     <div>
                                         <p class="text-sm font-semibold text-slate-800">
-                                            {{ $canManage ? ($feedback->reviewer?->name ?? '-') : __('app.feedback.relationships.'.$feedback->relationship) }}
+                                            {{ $canRequestFeedback ? ($feedback->reviewer?->name ?? '-') : __('app.feedback.relationships.'.$feedback->relationship) }}
                                         </p>
                                         <p class="text-xs text-slate-400">{{ __('app.feedback.relationships.'.$feedback->relationship) }}</p>
                                     </div>
@@ -203,7 +208,7 @@
                                         @else
                                             <span class="badge-amber">{{ __('app.feedback.pending') }}</span>
                                         @endif
-                                        @if ($canManage && ! $feedback->isSubmitted())
+                                        @if ($canRequestFeedback && ! $feedback->isSubmitted())
                                             <form method="POST" action="{{ route('evaluations.reviewers.destroy', [$evaluation, $feedback]) }}">
                                                 @csrf
                                                 @method('DELETE')
@@ -223,7 +228,7 @@
                         @endforelse
                     </div>
 
-                    @if ($canManage && $reviewerOptions->isNotEmpty())
+                    @if ($canRequestFeedback && $reviewerOptions->isNotEmpty())
                         <form method="POST" action="{{ route('evaluations.reviewers.store', $evaluation) }}" class="flex flex-wrap items-end gap-2">
                             @csrf
                             <div class="min-w-[180px] flex-1">

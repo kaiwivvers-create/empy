@@ -2,24 +2,37 @@
 
 @section('title', __('app.employees.detail_title'))
 
+@php
+    $viewer = auth()->user();
+    $canViewKpi = \App\Support\PageAccess::allows($viewer, 'kpi');
+    $canManageKpi = $canViewKpi && ($viewer->isAdmin() || $employee->isManagedBy($viewer));
+    $canViewEvaluations = \App\Support\PageAccess::allows($viewer, 'evaluations');
+@endphp
+
 @section('content')
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <a href="{{ route('employees.index') }}" class="btn-secondary">
-            <svg class="h-4 w-4 rotate-180"><use href="#i-arrow"/></svg>
-            {{ __('app.actions.back') }}
-        </a>
-        <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('employees.goals.index', $employee) }}" class="btn-secondary">
-                <svg class="h-4 w-4"><use href="#i-chart"/></svg>
-                {{ __('app.employees.view_goals') }}
+        {{-- Employees reach their own profile from the sidebar, so there is
+             nowhere useful for Back to go. --}}
+        @unless ($viewer->isEmployee())
+            <a href="{{ route('employees.index') }}" class="btn-secondary">
+                <svg class="h-4 w-4 rotate-180"><use href="#i-arrow"/></svg>
+                {{ __('app.actions.back') }}
             </a>
-            @if ($latest)
+        @endunless
+        <div class="flex flex-wrap items-center gap-2 {{ $viewer->isEmployee() ? 'ml-auto' : '' }}">
+            @if ($canManageKpi)
+                <a href="{{ route('kpi.index', ['employee' => $employee->id]) }}" class="btn-secondary">
+                    <svg class="h-4 w-4"><use href="#i-chart"/></svg>
+                    {{ __('app.employees.view_goals') }}
+                </a>
+            @endif
+            @if ($latest && $canViewEvaluations)
                 <a href="{{ route('evaluations.pdf', $latest) }}" class="btn-secondary">
                     <svg class="h-4 w-4"><use href="#i-download"/></svg>
                     {{ __('app.evaluations.pdf') }}
                 </a>
             @endif
-            @if (auth()->user()->isAdmin())
+            @if ($viewer->isAdmin())
                 <button type="button" class="btn-primary" data-modal-open="employee-show-edit">
                     <svg class="h-4 w-4"><use href="#i-pencil"/></svg>
                     {{ __('app.actions.edit') }}
@@ -106,9 +119,13 @@
                             @forelse ($evaluations as $evaluation)
                                 <tr class="table-row">
                                     <td>
-                                        <a href="{{ route('evaluations.show', $evaluation) }}" class="font-semibold text-slate-700 hover:text-indigo-600">
-                                            {{ $evaluation->period?->name }}
-                                        </a>
+                                        @if ($canViewEvaluations)
+                                            <a href="{{ route('evaluations.show', $evaluation) }}" class="font-semibold text-slate-700 hover:text-indigo-600">
+                                                {{ $evaluation->period?->name }}
+                                            </a>
+                                        @else
+                                            <span class="font-semibold text-slate-700">{{ $evaluation->period?->name }}</span>
+                                        @endif
                                     </td>
                                     <td class="text-center font-bold text-slate-900">{{ number_format((float) $evaluation->final_score, 1) }}</td>
                                     <td class="text-center">
@@ -128,7 +145,9 @@
             <div class="card">
                 <div class="card-header">
                     <h3 class="font-bold text-slate-900">{{ __('app.employees.goals') }}</h3>
-                    <a href="{{ route('employees.goals.index', $employee) }}" class="btn-ghost">{{ __('app.employees.view_goals') }}</a>
+                    @if ($canManageKpi)
+                        <a href="{{ route('kpi.index', ['employee' => $employee->id]) }}" class="btn-ghost">{{ __('app.employees.view_goals') }}</a>
+                    @endif
                 </div>
                 <div class="divide-y divide-slate-100">
                     @forelse ($goals as $goal)

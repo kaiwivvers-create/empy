@@ -14,13 +14,46 @@ class PeerFeedbackController extends Controller
 {
     public function index(Request $request): View
     {
+        $user = $request->user();
+
         $feedback = PeerFeedback::with(['evaluation.employee', 'evaluation.period'])
-            ->where('reviewer_id', $request->user()->id)
+            ->whereHas('evaluation')
+            ->where('reviewer_id', $user->id)
             ->orderByRaw('submitted_at is not null')
             ->latest()
             ->get();
 
-        return view('feedback.index', compact('feedback'));
+        // Employees receive feedback invitations, but cannot send requests.
+        $canSend = ! $user->isEmployee();
+        $evaluations = collect();
+        $periods = collect();
+
+        if ($canSend) {
+            $evaluations = Evaluation::query()
+                ->with(['employee.department', 'employee.position', 'period'])
+                ->when(! $user->isAdmin(), function ($query) use ($user) {
+                    $query->where(function ($inner) use ($user) {
+                        $inner->where('evaluator_id', $user->id);
+
+                        if ($user->employee) {
+                            $inner->orWhereHas('employee', fn ($employee) => $employee->where('manager_id', $user->employee->id));
+                        }
+                    });
+                })
+                ->latest('updated_at')
+                ->limit(100)
+                ->get()
+                ->filter(fn (Evaluation $evaluation) => $evaluation->userCanManageFeedback($user))
+                ->values();
+
+            $periods = $evaluations->pluck('period')
+                ->filter()
+                ->unique('id')
+                ->sortByDesc('start_date')
+                ->values();
+        }
+
+        return view('feedback.index', compact('feedback', 'canSend', 'evaluations', 'periods'));
     }
 
     public function store(Request $request, Evaluation $evaluation): RedirectResponse
@@ -32,6 +65,30 @@ class PeerFeedbackController extends Controller
             'relationship' => ['required', 'in:peer,subordinate,other'],
         ]);
 
+        return $this->createRequest($request, $evaluation, $data);
+    }
+
+    public function sendRequest(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'evaluation_id' => ['required', 'exists:evaluations,id'],
+            'reviewer_id' => ['required', 'exists:users,id'],
+            'relationship' => ['required', 'in:peer,subordinate,other'],
+        ]);
+
+        $evaluation = Evaluation::findOrFail($data['evaluation_id']);
+
+        abort_unless(
+            $evaluation->userCanManageFeedback($request->user()),
+            403,
+            __('app.common.no_access'),
+        );
+
+        return $this->createRequest($request, $evaluation, $data);
+    }
+
+    private function createRequest(Request $request, Evaluation $evaluation, array $data): RedirectResponse
+    {
         $reviewer = User::findOrFail($data['reviewer_id']);
 
         if ($reviewer->isSuperAdmin() && ! $request->user()->isSuperAdmin()) {
@@ -42,7 +99,7 @@ class PeerFeedbackController extends Controller
             return back()->with('error', __('app.feedback.cannot_self'));
         }
 
-        if ($evaluation->evaluator_id === $reviewer->id) {
+        if ($evaluation->evaluator_id === $reviewer->id && $reviewer->id !== $request->user()->id) {
             return back()->with('error', __('app.feedback.cannot_evaluator'));
         }
 
@@ -124,12 +181,10 @@ class PeerFeedbackController extends Controller
 
     private function authorizeManage(Request $request, Evaluation $evaluation): void
     {
-        $user = $request->user();
-
-        if ($user->isAdmin() || $evaluation->evaluator_id === $user->id) {
-            return;
-        }
-
-        abort(403, __('app.common.no_access'));
+        abort_unless(
+            $evaluation->userCanManageFeedback($request->user()),
+            403,
+            __('app.common.no_access'),
+        );
     }
 }

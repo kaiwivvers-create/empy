@@ -69,7 +69,8 @@ class ProjectController extends Controller
 
         ActivityLogger::record('created', 'Project created: '.$project->name, $project);
 
-        return redirect()->route('projects.index')->with('success', __('app.projects.success_created'));
+        return $this->redirectToIndex('projects.index', ['search', 'status', 'page'])
+            ->with('success', __('app.projects.success_created'));
     }
 
     public function show(Request $request, Project $project): View
@@ -105,7 +106,8 @@ class ProjectController extends Controller
             ActivityLogger::changes($project, $before),
         );
 
-        return redirect()->route('projects.index')->with('success', __('app.projects.success_updated'));
+        return $this->redirectToIndex('projects.index', ['search', 'status', 'page'])
+            ->with('success', __('app.projects.success_updated'));
     }
 
     public function destroy(Request $request, Project $project): RedirectResponse
@@ -116,7 +118,8 @@ class ProjectController extends Controller
 
         $project->delete();
 
-        return redirect()->route('projects.index')->with('success', __('app.projects.success_deleted'));
+        return $this->redirectToIndex('projects.index', ['search', 'status', 'page'])
+            ->with('success', __('app.projects.success_deleted'));
     }
 
     public function addMember(Request $request, Project $project): RedirectResponse
