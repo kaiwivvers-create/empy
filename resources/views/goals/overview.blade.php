@@ -98,11 +98,13 @@
                             @endforeach
                         </select>
                     </form>
-                    @if ($canManage)
+                    @if ($canManage && $goalPeriods->isNotEmpty())
                         <button type="button" class="btn-primary btn-sm" data-modal-open="goal-create">
                             <svg class="h-4 w-4"><use href="#i-plus"/></svg>
                             {{ __('app.goals.add') }}
                         </button>
+                    @elseif ($canManage)
+                        <span class="text-xs font-medium text-amber-700">{{ __('app.goals.no_open_period') }}</span>
                     @endif
                 </div>
             </div>
@@ -113,7 +115,8 @@
         @if ($canManage)
             @include('goals._create-modal', [
                 'employee' => $employee,
-                'periods' => $periods,
+                'periods' => $goalPeriods,
+                'unitOptions' => $unitOptions,
                 'selectedPeriod' => $selectedPeriod,
             ])
         @endif

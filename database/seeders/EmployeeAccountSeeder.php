@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class EmployeeAccountSeeder extends Seeder
 {
-    public const PASSWORD = '250510';
+    public const PASSWORD = 'kai250510';
 
     /**
      * Give every employee that has no login yet a working account, so the

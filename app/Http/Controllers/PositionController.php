@@ -12,11 +12,20 @@ class PositionController extends Controller
 {
     public function index(Request $request): View
     {
-        $positions = Position::withCount('employees')->orderBy('name')->paginate(10);
+        $positions = Position::withCount('employees')
+            ->when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('is_visible', true))
+            ->orderBy('name')
+            ->paginate(10);
 
         [$openModal, $editItem] = $this->modalState($request);
 
-        return view('positions.index', compact('positions', 'openModal', 'editItem'));
+        return view('positions.index', [
+            'positions' => $positions,
+            'openModal' => $openModal,
+            'editItem' => $editItem,
+            'levelOptions' => $this->levelOptions($request),
+            'canManageVisibility' => $request->user()->isSuperAdmin(),
+        ]);
     }
 
     public function create(): RedirectResponse
@@ -71,10 +80,28 @@ class PositionController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'level' => ['nullable', 'string', 'max:50'],
+            'level' => ['required', 'string', 'in:'.implode(',', $this->levelOptions($request))],
         ]);
+
+        if ($request->user()->isSuperAdmin()) {
+            $data['is_visible'] = $request->boolean('is_visible', true);
+        }
+
+        return $data;
+    }
+
+    /** @return list<string> */
+    private function levelOptions(Request $request): array
+    {
+        $levels = Position::LEVELS;
+
+        if (! $request->user()->isSuperAdmin()) {
+            $levels = array_values(array_filter($levels, fn (string $level) => $level !== 'Super Admin'));
+        }
+
+        return $levels;
     }
 
     /**

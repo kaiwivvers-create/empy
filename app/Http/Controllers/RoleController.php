@@ -59,6 +59,7 @@ class RoleController extends Controller
             'label_id' => $data['label_id'] ?? null,
             'base' => $data['base'],
             'is_system' => false,
+            'show_in_accounts' => $request->boolean('show_in_accounts'),
         ]);
 
         PageAccess::registerRole($role, $data['base']);
@@ -77,6 +78,7 @@ class RoleController extends Controller
             'label' => $data['label'],
             'label_id' => $data['label_id'] ?? null,
             'base' => $data['base'],
+            'show_in_accounts' => $request->boolean('show_in_accounts'),
         ]);
 
         ActivityLogger::record(
@@ -130,6 +132,7 @@ class RoleController extends Controller
             'label' => ['required', 'string', 'max:60'],
             'label_id' => ['nullable', 'string', 'max:60'],
             'base' => ['required', Rule::in(Role::bases())],
+            'show_in_accounts' => ['nullable', 'boolean'],
         ]);
 
         if ($role?->is_system && $data['base'] !== $role->base

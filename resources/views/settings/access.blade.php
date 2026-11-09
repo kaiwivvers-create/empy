@@ -105,7 +105,7 @@
         </div>
     </form>
 
-    <x-modal-form id="access-defaults" :title="__('app.access.defaults_title')" :subtitle="__('app.access.defaults_subtitle')" :action="route('access.defaults')" method="PUT" wide>
+    <x-modal-form id="access-defaults" :title="__('app.access.defaults_title')" :subtitle="__('app.access.defaults_subtitle')" :action="route('access.defaults')" method="PUT" extra-wide>
         <div class="overflow-x-auto rounded-xl border border-slate-200">
             <table class="table-stable w-full">
                 <colgroup>

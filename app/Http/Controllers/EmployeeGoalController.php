@@ -58,6 +58,8 @@ class EmployeeGoalController extends Controller
             'employee' => $employee,
             'goals' => $goals,
             'periods' => EvaluationPeriod::orderByDesc('start_date')->get(),
+            'goalPeriods' => $this->goalPeriods($user),
+            'unitOptions' => EmployeeGoal::UNITS,
             'selectedPeriod' => $request->integer('period') ?: null,
             'canManage' => $employee ? $this->canManage($request, $employee) : false,
         ]);
@@ -82,7 +84,7 @@ class EmployeeGoalController extends Controller
 
         $data = $this->validated($request);
 
-        if ($this->periodLocked($request, (int) $data['period_id'])) {
+        if ($this->periodLocked($request, (int) $data['period_id'], true)) {
             return back()->with('error', __('app.goals.period_locked'));
         }
 
@@ -100,7 +102,7 @@ class EmployeeGoalController extends Controller
         abort_unless($goal->employee_id === $employee->id, 404);
 
         $before = $goal->getAttributes();
-        $data = $this->validated($request);
+        $data = $this->validated($request, $goal);
 
         if ($this->periodLocked($request, (int) $data['period_id'])) {
             return back()->with('error', __('app.goals.period_locked'));
@@ -136,14 +138,19 @@ class EmployeeGoalController extends Controller
             ->with('success', __('app.goals.success_deleted'));
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, ?EmployeeGoal $goal = null): array
     {
+        $unit = $request->string('unit')->toString();
+        $valueRules = EmployeeGoal::unitAllowsDecimals($unit)
+            ? ['numeric', 'decimal:0,2']
+            : ['integer'];
+
         $data = $request->validate([
             'period_id' => ['required', 'exists:evaluation_periods,id'],
             'title' => ['required', 'string', 'max:255'],
-            'target_value' => ['required', 'numeric', 'min:0.01'],
-            'unit' => ['required', 'string', 'max:30'],
-            'achievement_value' => ['nullable', 'numeric', 'min:0'],
+            'target_value' => ['required', ...$valueRules, 'min:'.(EmployeeGoal::unitAllowsDecimals($unit) ? '0.01' : '1'), 'max:9999999999.99'],
+            'unit' => ['required', 'string', 'max:30', 'in:'.implode(',', array_unique(array_merge(EmployeeGoal::UNITS, $goal?->unit ? [$goal->unit] : [])))],
+            'achievement_value' => ['nullable', ...$valueRules, 'min:0', 'max:9999999999.99'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -165,7 +172,7 @@ class EmployeeGoalController extends Controller
      * KPIs belong to a period, so they can only be changed while that period
      * is inside its date range (admins can always correct history).
      */
-    private function periodLocked(Request $request, int $periodId): bool
+    private function periodLocked(Request $request, int $periodId, bool $creating = false): bool
     {
         if ($request->user()->isAdmin()) {
             return false;
@@ -173,7 +180,27 @@ class EmployeeGoalController extends Controller
 
         $period = EvaluationPeriod::find($periodId);
 
-        return $period !== null && ! $period->isOpenForEditing();
+        if (! $period) {
+            return true;
+        }
+
+        return $creating
+            ? ! $period->acceptsEntries()
+            : ! $period->isOpenForEditing();
+    }
+
+    private function goalPeriods($user)
+    {
+        $query = EvaluationPeriod::query()->orderByDesc('start_date');
+
+        if (! $user->isAdmin()) {
+            $query
+                ->where('status', 'active')
+                ->whereDate('start_date', '<=', today())
+                ->whereDate('end_date', '>=', today());
+        }
+
+        return $query->get();
     }
 
     private function canManage(Request $request, Employee $employee): bool

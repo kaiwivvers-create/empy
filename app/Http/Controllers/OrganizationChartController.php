@@ -6,7 +6,6 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Role;
-use App\Models\User;
 use App\Support\ActivityLogger;
 use App\Support\Organization;
 use Illuminate\Http\RedirectResponse;
@@ -43,11 +42,12 @@ class OrganizationChartController extends Controller
                 ->unique('id')
                 ->sortBy('name')
                 ->values(),
-            'positions' => Position::orderBy('name')->get(),
-            'accountRoles' => Role::query()
-                ->where('name', '!=', User::ROLE_SUPER_ADMIN)
-                ->orderBy('id')
-                ->get()
+            'positions' => Position::when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('is_visible', true))->orderBy('name')->get(),
+            'levelOptions' => $request->user()->isSuperAdmin()
+                ? Position::LEVELS
+                : array_values(array_filter(Position::LEVELS, fn (string $level) => $level !== 'Super Admin')),
+            'canManageVisibility' => $request->user()->isSuperAdmin(),
+            'accountRoles' => Role::accountRoles()
                 ->mapWithKeys(fn (Role $role) => [$role->name => $role->displayLabel()])
                 ->all(),
         ]);

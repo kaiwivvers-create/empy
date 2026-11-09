@@ -21,7 +21,7 @@
                 <a href="{{ route('employees.index', ['trashed' => $showTrashed ? 0 : 1]) }}" class="btn-secondary">
                     {{ $showTrashed ? __('app.common.hide_archived') : __('app.common.show_archived') }}
                 </a>
-                <a href="{{ route('employees.import') }}" class="btn-secondary">
+                <button type="button" class="btn-secondary" data-modal-open="employee-import">
                     <svg class="h-4 w-4"><use href="#i-download"/></svg>
                     {{ __('app.import.title') }}
                 </a>
@@ -188,6 +188,58 @@
                 'prefix' => 'employee-create',
             ])
         </x-modal-form>
+
+        <x-modal-form id="employee-import" :title="__('app.import.title')" :subtitle="__('app.import.subtitle')" :action="route('employees.import.store')" enctype="multipart/form-data" :submit-label="__('app.import.button')" :open="$openModal === 'employee-import'" wide>
+            <div class="flex justify-end -mb-2">
+                <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600" data-modal-open="employee-import-help" title="{{ __('app.help.button') }}" aria-label="{{ __('app.help.button') }}">
+                    <svg class="h-4 w-4"><use href="#i-help"/></svg>
+                </button>
+            </div>
+            @if (session('import_errors'))
+                <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <p class="mb-1 font-bold">{{ __('app.import.errors_title') }}</p>
+                    <ul class="list-inside list-disc space-y-0.5">
+                        @foreach (session('import_errors') as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+            <div>
+                <label class="label" for="employee-import-file">{{ __('app.import.file') }}</label>
+                <input id="employee-import-file" type="file" name="file" accept=".csv,text/csv" class="input" required>
+            </div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
+                <p class="font-semibold text-slate-700">{{ __('app.import.columns') }}</p>
+                <p class="mt-1">{{ __('app.import.hint') }}</p>
+            </div>
+            <a href="{{ route('employees.import.template') }}" class="btn-ghost">
+                <svg class="h-4 w-4"><use href="#i-download"/></svg>
+                {{ __('app.import.download_template') }}
+            </a>
+        </x-modal-form>
+
+        <div id="employee-import-help" class="modal" data-modal aria-hidden="true" data-open="false">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel max-w-lg" role="dialog" aria-modal="true" aria-labelledby="employee-import-help-title">
+                <div class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+                    <div class="flex min-w-0 items-start gap-3">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><svg class="h-5 w-5"><use href="#i-help"/></svg></span>
+                        <div><h2 id="employee-import-help-title" class="text-lg font-extrabold text-slate-900">{{ __('app.help.title') }}</h2><p class="mt-0.5 text-sm font-semibold text-indigo-600">{{ __('app.help.import.title') }}</p></div>
+                    </div>
+                    <button type="button" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" data-modal-close aria-label="{{ __('app.actions.close') }}"><svg class="h-5 w-5"><use href="#i-x"/></svg></button>
+                </div>
+                <div class="space-y-4 p-5">
+                    <p class="text-sm leading-relaxed text-slate-600">{{ __('app.help.import.summary') }}</p>
+                    <ol class="space-y-2.5">
+                        @foreach (trans('app.help.import.steps') as $step)
+                            <li class="flex gap-3 text-sm leading-relaxed text-slate-600"><span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-600">{{ $loop->iteration }}</span><span>{{ $step }}</span></li>
+                        @endforeach
+                    </ol>
+                </div>
+                <div class="flex justify-end border-t border-slate-100 px-5 py-4"><button type="button" class="btn-secondary" data-modal-close>{{ __('app.help.close') }}</button></div>
+            </div>
+        </div>
 
         @unless ($showTrashed)
             @foreach ($employees as $employee)

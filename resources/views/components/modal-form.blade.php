@@ -7,12 +7,13 @@
     'open' => false,
     'enctype' => null,
     'wide' => false,
+    'extraWide' => false,
     'submitLabel' => null,
 ])
 
 @php
     $isOpen = (bool) $open || old('_modal') === $id;
-    $panelWidth = $wide ? 'max-w-3xl' : 'max-w-xl';
+    $panelWidth = $extraWide ? 'max-w-6xl' : ($wide ? 'max-w-3xl' : 'max-w-xl');
 @endphp
 
 <div id="{{ $id }}"

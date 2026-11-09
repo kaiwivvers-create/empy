@@ -8,10 +8,11 @@ use Illuminate\Support\Collection;
 
 class Role extends Model
 {
-    protected $fillable = ['name', 'label', 'label_id', 'base', 'is_system'];
+    protected $fillable = ['name', 'label', 'label_id', 'base', 'is_system', 'show_in_accounts'];
 
     protected $casts = [
         'is_system' => 'boolean',
+        'show_in_accounts' => 'boolean',
     ];
 
     /** @var Collection<int, Role>|null */
@@ -49,6 +50,40 @@ class Role extends Model
         }
 
         return in_array($name, static::bases(), true) ? $name : 'employee';
+    }
+
+    /**
+     * Names of roles that have manager-level capabilities.
+     *
+     * @return list<string>
+     */
+    public static function managerNames(): array
+    {
+        return static::allCached()
+            ->where('base', User::ROLE_MANAGER)
+            ->pluck('name')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Roles available when assigning an account role to an employee/user.
+     *
+     * @return Collection<int, Role>
+     */
+    public static function accountRoles(?string $include = null): Collection
+    {
+        return static::query()
+            ->where('name', '!=', User::ROLE_SUPER_ADMIN)
+            ->where(function ($query) use ($include) {
+                $query->where('show_in_accounts', true);
+
+                if ($include) {
+                    $query->orWhere('name', $include);
+                }
+            })
+            ->orderBy('id')
+            ->get();
     }
 
     public function users(): HasMany

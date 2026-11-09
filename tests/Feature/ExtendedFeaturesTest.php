@@ -228,7 +228,7 @@ class ExtendedFeaturesTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post('/employees/import', ['file' => $file])
-            ->assertRedirect('/employees/import');
+            ->assertRedirect('/employees?open=import');
 
         $this->assertDatabaseHas('employees', ['nip' => 'E-100', 'name' => 'Imported Person']);
     }

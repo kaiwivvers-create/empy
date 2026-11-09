@@ -123,11 +123,16 @@ class PeerFeedbackController extends Controller
 
     public function destroy(Request $request, Evaluation $evaluation, PeerFeedback $feedback): RedirectResponse
     {
-        $this->authorizeManage($request, $evaluation);
         abort_unless($feedback->evaluation_id === $evaluation->id, 404);
 
         if ($feedback->isSubmitted()) {
             return back()->with('error', __('app.feedback.cannot_remove_submitted'));
+        }
+
+        $isReviewerCancelling = $feedback->reviewer_id === $request->user()->id;
+
+        if (! $isReviewerCancelling) {
+            $this->authorizeManage($request, $evaluation);
         }
 
         ActivityLogger::record(

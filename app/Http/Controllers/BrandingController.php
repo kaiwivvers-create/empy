@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Setting;
 use App\Support\ActivityLogger;
 use App\Support\Brand;
+use App\Support\SystemTimezone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +21,8 @@ class BrandingController extends Controller
             'tagline' => Brand::tagline(),
             'description' => Brand::description(),
             'logoUrl' => Brand::logoUrl(),
+            'timezone' => SystemTimezone::current(),
+            'timezones' => SystemTimezone::options(),
         ]);
     }
 
@@ -29,6 +32,7 @@ class BrandingController extends Controller
             'brand_name' => ['required', 'string', 'max:60'],
             'brand_tagline' => ['nullable', 'string', 'max:120'],
             'brand_description' => ['nullable', 'string', 'max:500'],
+            'system_timezone' => ['nullable', 'string', 'in:'.implode(',', array_keys(SystemTimezone::options()))],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'logo_data' => ['nullable', 'string'],
             'remove_logo' => ['nullable', 'boolean'],
@@ -37,6 +41,7 @@ class BrandingController extends Controller
         Setting::put('brand_name', $data['brand_name']);
         Setting::put('brand_tagline', $data['brand_tagline'] ?? null);
         Setting::put('brand_description', $data['brand_description'] ?? null);
+        Setting::put('system_timezone', $data['system_timezone'] ?? SystemTimezone::current());
 
         $current = Setting::get('brand_logo_path');
 

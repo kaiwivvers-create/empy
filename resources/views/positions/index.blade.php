@@ -27,6 +27,9 @@
                     <tr>
                         <th>{{ __('app.common.name') }}</th>
                         <th>{{ __('app.positions.level') }}</th>
+                        @if ($canManageVisibility)
+                            <th class="text-center">{{ __('app.positions.visibility') }}</th>
+                        @endif
                         <th class="text-center">{{ __('app.departments.employees_count') }}</th>
                         <th class="text-right">{{ __('app.common.actions') }}</th>
                     </tr>
@@ -42,6 +45,13 @@
                                     <span class="text-slate-400">-</span>
                                 @endif
                             </td>
+                            @if ($canManageVisibility)
+                                <td class="text-center">
+                                    <span class="{{ $position->is_visible ? 'badge-green' : 'badge-slate' }}">
+                                        {{ $position->is_visible ? __('app.positions.visible') : __('app.positions.hidden') }}
+                                    </span>
+                                </td>
+                            @endif
                             <td class="text-center font-semibold text-slate-700">{{ $position->employees_count }}</td>
                             <td>
                                 <div class="flex items-center justify-end gap-1">
@@ -73,18 +83,18 @@
     @php $blankPosition = new \App\Models\Position; @endphp
 
     <x-modal-form id="position-create" :title="__('app.positions.create_title')" :subtitle="__('app.positions.subtitle')" :action="route('positions.store')" :open="$openModal === 'position-create'">
-        @include('positions._fields', ['position' => $blankPosition, 'prefix' => 'position-create'])
+        @include('positions._fields', ['position' => $blankPosition, 'prefix' => 'position-create', 'levelOptions' => $levelOptions, 'canManageVisibility' => $canManageVisibility])
     </x-modal-form>
 
     @foreach ($positions as $position)
         <x-modal-form id="position-edit-{{ $position->id }}" :title="__('app.positions.edit_title')" :subtitle="__('app.positions.subtitle')" :action="route('positions.update', $position)" method="PUT" :open="$openModal === 'position-edit-'.$position->id">
-            @include('positions._fields', ['position' => $position, 'prefix' => 'position-edit-'.$position->id])
+            @include('positions._fields', ['position' => $position, 'prefix' => 'position-edit-'.$position->id, 'levelOptions' => $levelOptions, 'canManageVisibility' => $canManageVisibility])
         </x-modal-form>
     @endforeach
 
     @if ($editItem && ! $positions->getCollection()->contains('id', $editItem->id))
         <x-modal-form id="position-edit-{{ $editItem->id }}" :title="__('app.positions.edit_title')" :subtitle="__('app.positions.subtitle')" :action="route('positions.update', $editItem)" method="PUT" :open="$openModal === 'position-edit-'.$editItem->id">
-            @include('positions._fields', ['position' => $editItem, 'prefix' => 'position-edit-'.$editItem->id])
+                @include('positions._fields', ['position' => $editItem, 'prefix' => 'position-edit-'.$editItem->id, 'levelOptions' => $levelOptions, 'canManageVisibility' => $canManageVisibility])
         </x-modal-form>
     @endif
 @endsection

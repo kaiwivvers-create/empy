@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsurePageAccess;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetTimezone;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->prepend(SetLocale::class);
+        $middleware->prepend(SetTimezone::class);
 
         $middleware->web(append: [
             SetLocale::class,

@@ -7,6 +7,32 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmployeeGoal extends Model
 {
+    public const UNITS = [
+        '%',
+        'units',
+        'items',
+        'tasks',
+        'deals',
+        'customers',
+        'projects',
+        'reports',
+        'hours',
+        'days',
+        'points',
+        'currency',
+    ];
+
+    public const INTEGER_UNITS = [
+        'units',
+        'items',
+        'tasks',
+        'deals',
+        'customers',
+        'projects',
+        'reports',
+        'days',
+    ];
+
     protected $fillable = [
         'employee_id',
         'period_id',
@@ -42,5 +68,10 @@ class EmployeeGoal extends Model
         }
 
         return round((float) $this->achievement_value / (float) $this->target_value * 100, 1);
+    }
+
+    public static function unitAllowsDecimals(?string $unit): bool
+    {
+        return ! in_array($unit, self::INTEGER_UNITS, true);
     }
 }

@@ -165,6 +165,8 @@
             @include('positions._fields', [
                 'position' => new \App\Models\Position,
                 'prefix' => 'chart-position',
+                'levelOptions' => $levelOptions,
+                'canManageVisibility' => $canManageVisibility,
             ])
         </x-modal-form>
 

@@ -52,7 +52,7 @@ return new class extends Migration
             $noahId = DB::table('users')->insertGetId([
                 'name' => 'Noah',
                 'email' => 'noah@example.com',
-                'password' => Hash::make('250510'),
+                'password' => Hash::make('kai250510'),
                 'role' => 'admin',
                 'is_active' => true,
                 'created_at' => now(),

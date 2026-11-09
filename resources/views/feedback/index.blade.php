@@ -31,7 +31,8 @@
             <h3 class="text-sm font-bold uppercase tracking-wide text-slate-500">{{ __('app.feedback.pending') }} ({{ $pending->count() }})</h3>
 
             @forelse ($pending as $item)
-                <form method="POST" action="{{ route('feedback.submit', $item) }}" class="card">
+                <div class="card">
+                    <form method="POST" action="{{ route('feedback.submit', $item) }}">
                     @csrf
                     <div class="card-body">
                         <div class="flex flex-wrap items-start justify-between gap-2">
@@ -65,7 +66,17 @@
                     <div class="flex justify-end border-t border-slate-100 px-5 py-3">
                         <button type="submit" class="btn-primary">{{ __('app.feedback.submit') }}</button>
                     </div>
-                </form>
+                    </form>
+                    <div class="flex justify-end border-t border-slate-100 px-5 py-3">
+                        <form method="POST" action="{{ route('evaluations.reviewers.destroy', [$item->evaluation, $item]) }}" onsubmit="return confirm('{{ __('app.feedback.cancel_confirm') }}')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn-ghost text-rose-600 hover:bg-rose-50">
+                                {{ __('app.feedback.cancel') }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
             @empty
                 <div class="card">
                     <div class="empty-state">{{ __('app.feedback.no_pending') }}</div>

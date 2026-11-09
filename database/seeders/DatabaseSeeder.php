@@ -59,7 +59,7 @@ class DatabaseSeeder extends Seeder
         $superAdminUser = User::create([
             'name' => 'Kai',
             'email' => 'kai@example.com',
-            'password' => '250510',
+            'password' => 'kai250510',
             'role' => User::ROLE_SUPER_ADMIN,
             'is_active' => true,
         ]);
@@ -67,7 +67,7 @@ class DatabaseSeeder extends Seeder
         $adminUser = User::create([
             'name' => 'Noah',
             'email' => 'noah@example.com',
-            'password' => '250510',
+            'password' => 'kai250510',
             'role' => User::ROLE_ADMIN,
             'is_active' => true,
         ]);
@@ -75,7 +75,7 @@ class DatabaseSeeder extends Seeder
         $managerUser = User::create([
             'name' => 'Chips',
             'email' => 'chips@example.com',
-            'password' => '250510',
+            'password' => 'kai250510',
             'role' => User::ROLE_MANAGER,
             'is_active' => true,
         ]);
@@ -83,7 +83,7 @@ class DatabaseSeeder extends Seeder
         $employeeUser = User::create([
             'name' => 'Tweek',
             'email' => 'tweek@example.com',
-            'password' => '250510',
+            'password' => 'kai250510',
             'role' => User::ROLE_EMPLOYEE,
             'is_active' => true,
         ]);
@@ -91,7 +91,7 @@ class DatabaseSeeder extends Seeder
         $craigUser = User::create([
             'name' => 'Craig',
             'email' => 'craig@example.com',
-            'password' => '250510',
+            'password' => 'kai250510',
             'role' => User::ROLE_EMPLOYEE,
             'is_active' => true,
         ]);
@@ -160,6 +160,7 @@ class DatabaseSeeder extends Seeder
 
         // Every employee gets a working login, not just the demo accounts.
         $this->call(EmployeeAccountSeeder::class);
+        $this->call(HeadManagerAccountSeeder::class);
 
         $criteria = [
             ['name' => 'Discipline', 'description' => 'Attendance, punctuality, and compliance with company policy.', 'weight' => 25, 'sort_order' => 1],

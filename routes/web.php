@@ -62,7 +62,6 @@ Route::middleware(['auth', 'page.access'])->group(function () {
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::middleware('role:admin')->group(function () {
         Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
-        Route::get('/employees/import', [EmployeeImportController::class, 'index'])->name('employees.import');
         Route::post('/employees/import', [EmployeeImportController::class, 'import'])->name('employees.import.store');
         Route::get('/employees/import/template', [EmployeeImportController::class, 'template'])->name('employees.import.template');
         Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');

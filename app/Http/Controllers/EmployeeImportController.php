@@ -10,17 +10,11 @@ use App\Support\Organization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeImportController extends Controller
 {
     private const HEADER = ['nip', 'name', 'email', 'phone', 'department_code', 'position_name', 'manager_nip', 'hire_date', 'status'];
-
-    public function index(): View
-    {
-        return view('employees.import');
-    }
 
     public function template(): StreamedResponse
     {
@@ -41,7 +35,8 @@ class EmployeeImportController extends Controller
         $handle = fopen($request->file('file')->getRealPath(), 'r');
 
         if (! $handle) {
-            return back()->with('error', __('app.import.unreadable'));
+            return redirect()->route('employees.index', ['open' => 'import'])
+                ->with('error', __('app.import.unreadable'));
         }
 
         $header = array_map(fn ($value) => Str::slug(trim((string) $value), '_'), (array) fgetcsv($handle));
@@ -49,7 +44,8 @@ class EmployeeImportController extends Controller
         if (array_diff(['nip', 'name'], $header)) {
             fclose($handle);
 
-            return back()->with('error', __('app.import.missing_header'));
+            return redirect()->route('employees.index', ['open' => 'import'])
+                ->with('error', __('app.import.missing_header'));
         }
 
         $imported = 0;
@@ -137,7 +133,7 @@ class EmployeeImportController extends Controller
 
         ActivityLogger::record('imported', "Employee CSV imported: {$imported} created, {$skipped} skipped");
 
-        return redirect()->route('employees.import')
+        return redirect()->route('employees.index', ['open' => 'import'])
             ->with('success', __('app.import.success', ['imported' => $imported, 'skipped' => $skipped]))
             ->with('import_errors', $errors);
     }

@@ -48,8 +48,8 @@ class EmployeeController extends Controller
         return view('employees.index', [
             'employees' => $employees,
             'departments' => Department::orderBy('name')->get(),
-            'positions' => Position::orderBy('name')->get(),
-            'managers' => Employee::active()->with('position')->orderBy('name')->get(),
+            'positions' => Position::when(! $user->isSuperAdmin(), fn ($query) => $query->where('is_visible', true))->orderBy('name')->get(),
+            'managers' => $this->managerEmployees(),
             'accountRoles' => $this->accountRoles(),
             'isManagerView' => $user->isManager(),
             'showTrashed' => $showTrashed,
@@ -119,8 +119,10 @@ class EmployeeController extends Controller
             'goals' => $employee->goals->sortByDesc('period_id')->take(6),
             'plans' => $employee->improvementPlans->sortByDesc('created_at')->take(5),
             'departments' => Department::orderBy('name')->get(),
-            'positions' => Position::orderBy('name')->get(),
-            'managers' => Employee::active()->whereKeyNot($employee->id)->with('position')->orderBy('name')->get(),
+            'positions' => Position::when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('is_visible', true))->orderBy('name')->get(),
+            'managers' => $this->managerEmployees()
+                ->reject(fn (Employee $manager) => $manager->id === $employee->id)
+                ->values(),
             'accountRoles' => $this->accountRoles(),
         ]);
     }
@@ -192,7 +194,13 @@ class EmployeeController extends Controller
 
     private function validateEmployee(Request $request, ?Employee $employee = null): array
     {
-        $managerRule = ['nullable', 'exists:employees,id'];
+        $managerRule = [
+            'nullable',
+            Rule::exists('employees', 'id')->whereIn(
+                'user_id',
+                User::query()->whereIn('role', Role::managerNames())->select('id'),
+            )->where('status', 'active'),
+        ];
 
         if ($employee) {
             $managerRule[] = Rule::notIn([$employee->id]);
@@ -395,12 +403,18 @@ class EmployeeController extends Controller
      */
     private function accountRoles(): array
     {
-        return Role::query()
-            ->where('name', '!=', User::ROLE_SUPER_ADMIN)
-            ->orderBy('id')
-            ->get()
+        return Role::accountRoles()
             ->mapWithKeys(fn (Role $role) => [$role->name => $role->displayLabel()])
             ->all();
+    }
+
+    private function managerEmployees()
+    {
+        return Employee::active()
+            ->whereHas('user', fn ($query) => $query->whereIn('role', Role::managerNames()))
+            ->with('position')
+            ->orderBy('name')
+            ->get();
     }
 
     private function authorizeView(Request $request, Employee $employee): void
@@ -431,6 +445,8 @@ class EmployeeController extends Controller
             $open = $editItem ? 'employee-edit-'.$editItem->id : null;
         } elseif ($open === 'create') {
             $open = 'employee-create';
+        } elseif ($open === 'import') {
+            $open = 'employee-import';
         }
 
         return [$open ?: null, $editItem];

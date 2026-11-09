@@ -35,18 +35,15 @@ class UserController extends Controller
 
         [$openModal, $editItem] = $this->modalState($request);
 
-        $roles = Role::query()
-            ->when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('name', '!=', User::ROLE_SUPER_ADMIN))
-            ->orderBy('id')
-            ->get();
+        $roles = Role::accountRoles();
 
         return view('users.index', [
             'users' => $users,
             'filters' => $request->only('search', 'role'),
             'roleOptions' => $roles->mapWithKeys(fn (Role $role) => [$role->name => $role->displayLabel()]),
             'departments' => Department::orderBy('name')->get(),
-            'positions' => Position::orderBy('name')->get(),
-            'managers' => Employee::active()->with('position')->orderBy('name')->get(),
+            'positions' => Position::when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('is_visible', true))->orderBy('name')->get(),
+            'managers' => $this->managerEmployees(),
             'openModal' => $openModal,
             'editItem' => $editItem,
         ]);
@@ -324,7 +321,13 @@ class UserController extends Controller
     {
         $employee = $user?->employee;
 
-        $managerRule = ['nullable', 'exists:employees,id'];
+        $managerRule = [
+            'nullable',
+            Rule::exists('employees', 'id')->whereIn(
+                'user_id',
+                User::query()->whereIn('role', Role::managerNames())->select('id'),
+            )->where('status', 'active'),
+        ];
 
         if ($employee) {
             $managerRule[] = Rule::notIn([$employee->id]);
@@ -360,6 +363,15 @@ class UserController extends Controller
         }
 
         return $rules;
+    }
+
+    private function managerEmployees()
+    {
+        return Employee::active()
+            ->whereHas('user', fn ($query) => $query->whereIn('role', Role::managerNames()))
+            ->with('position')
+            ->orderBy('name')
+            ->get();
     }
 
     private function authorizeUser(Request $request, User $user): void

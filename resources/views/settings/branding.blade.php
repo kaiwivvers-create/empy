@@ -29,6 +29,16 @@
                     @error('brand_description') <p class="form-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
+                    <label class="label" for="system_timezone">{{ __('app.branding.timezone') }}</label>
+                    <select id="system_timezone" name="system_timezone" class="input" required>
+                        @foreach ($timezones as $value => $label)
+                            <option value="{{ $value }}" @selected(old('system_timezone', $timezone) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1.5 text-xs text-slate-500">{{ __('app.branding.timezone_hint') }}</p>
+                    @error('system_timezone') <p class="form-error">{{ $message }}</p> @enderror
+                </div>
+                <div>
                     <p class="label">{{ __('app.branding.logo') }}</p>
                     @include('partials.image-cropper', [
                         'dataName' => 'logo_data',

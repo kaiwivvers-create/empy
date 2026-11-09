@@ -482,6 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const wrapper = document.createElement('div');
             const autoWidth = select.classList.contains('!w-auto');
+            const triggerClasses = select.className;
             wrapper.className = `searchable-select relative ${autoWidth ? 'inline-block' : 'w-full'}`;
 
             select.parentNode.insertBefore(wrapper, select);
@@ -492,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const trigger = document.createElement('button');
             trigger.type = 'button';
-            trigger.className = `${select.className} flex items-center justify-between gap-2 text-left`;
+            trigger.className = `${triggerClasses} flex items-center justify-between gap-2 text-left`;
             trigger.setAttribute('aria-haspopup', 'listbox');
             trigger.setAttribute('aria-expanded', 'false');
             trigger.innerHTML = '<span class="min-w-0 truncate" data-searchable-label></span><svg class="h-4 w-4 shrink-0 text-slate-400 transition-transform" data-searchable-chevron><use href="#i-chevron"/></svg>';

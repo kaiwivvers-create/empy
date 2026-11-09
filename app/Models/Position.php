@@ -10,7 +10,24 @@ class Position extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'level'];
+    public const LEVELS = [
+        'Staff',
+        'Junior',
+        'Senior',
+        'Manager',
+        'Head Manager',
+        'Admin',
+        'Super Admin',
+    ];
+
+    protected $fillable = ['name', 'level', 'is_visible'];
+
+    protected function casts(): array
+    {
+        return [
+            'is_visible' => 'boolean',
+        ];
+    }
 
     public function employees(): HasMany
     {

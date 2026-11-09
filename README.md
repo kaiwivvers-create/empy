@@ -71,7 +71,7 @@ Open the URL configured in `APP_URL` (default `http://127.0.0.1:8000`).
 
 ### Demo accounts
 
-All demo accounts use the password `250510`.
+All demo accounts use the password `kai250510`.
 
 | Email | Role |
 | --- | --- |
