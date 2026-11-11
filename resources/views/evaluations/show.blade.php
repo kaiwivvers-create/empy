@@ -204,7 +204,7 @@
                                     </div>
                                     <div class="flex items-center gap-2">
                                         @if ($feedback->isSubmitted())
-                                            <span class="badge-green">{{ $feedback->score }}/5</span>
+                                            <span class="badge-green">{{ number_format($feedback->overallScore() ?? 0, 0) }}%</span>
                                         @else
                                             <span class="badge-amber">{{ __('app.feedback.pending') }}</span>
                                         @endif
@@ -219,6 +219,13 @@
                                         @endif
                                     </div>
                                 </div>
+                                @if ($feedback->isSubmitted() && $feedback->scores->isNotEmpty())
+                                    <div class="mt-2 flex flex-wrap gap-1.5">
+                                        @foreach ($feedback->scores as $peerScore)
+                                            <span class="badge-slate">{{ $peerScore->criterion?->name }}: {{ $peerScore->score }}/5</span>
+                                        @endforeach
+                                    </div>
+                                @endif
                                 @if ($feedback->comment)
                                     <p class="mt-1 text-xs text-slate-500">{{ $feedback->comment }}</p>
                                 @endif

@@ -44,6 +44,7 @@ class UserController extends Controller
             'departments' => Department::orderBy('name')->get(),
             'positions' => Position::when(! $request->user()->isSuperAdmin(), fn ($query) => $query->where('is_visible', true))->orderBy('name')->get(),
             'managers' => $this->managerEmployees(),
+            'employeeOptions' => $this->unlinkedEmployees(),
             'openModal' => $openModal,
             'editItem' => $editItem,
         ]);
@@ -175,24 +176,40 @@ class UserController extends Controller
      */
     private function syncEmployee(Request $request, User $user, array $data): ?Employee
     {
-        $employee = $user->employee;
+        $previous = $user->employee;
+        $employee = $previous;
+        $selectedId = $data['employee_id'] ?? null;
+
+        if (filled($selectedId)) {
+            $selected = Employee::query()->find($selectedId);
+
+            if ($selected && (int) $selected->id !== (int) $previous?->id) {
+                // A login owns at most one employee record.
+                $previous?->update(['user_id' => null]);
+
+                $employee = $selected;
+            }
+        }
+
         $nip = $data['nip'] ?? null;
 
         if (! $employee && blank($nip)) {
             return null;
         }
 
+        $justAttached = $employee !== null && (! $previous || (int) $previous->id !== (int) $employee->id);
+
         $payload = [
             'user_id' => $user->id,
-            'nip' => $nip,
+            'nip' => filled($nip) ? $nip : $employee?->nip,
             'name' => $data['name'],
             'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'department_id' => $data['department_id'] ?? null,
-            'position_id' => $data['position_id'] ?? null,
-            'manager_id' => $data['manager_id'] ?? null,
-            'hire_date' => $data['hire_date'] ?? null,
-            'status' => $data['status'] ?? $employee?->status ?? 'active',
+            'phone' => $this->valueOrExisting($data, 'phone', $employee, $justAttached),
+            'department_id' => $this->valueOrExisting($data, 'department_id', $employee, $justAttached),
+            'position_id' => $this->valueOrExisting($data, 'position_id', $employee, $justAttached),
+            'manager_id' => $this->valueOrExisting($data, 'manager_id', $employee, $justAttached),
+            'hire_date' => $this->valueOrExisting($data, 'hire_date', $employee, $justAttached),
+            'status' => filled($data['status'] ?? null) ? $data['status'] : ($employee?->status ?? 'active'),
         ];
 
         $photo = $this->resolvePhoto($request, $user, $data, $employee);
@@ -213,6 +230,21 @@ class UserController extends Controller
         Organization::syncManagerWithDepartmentHead($employee);
 
         return $employee;
+    }
+
+    /**
+     * Keep the selected employee's stored value when a freshly linked employee
+     * is saved while the matching form fields are still blank.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function valueOrExisting(array $data, string $key, ?Employee $employee, bool $justAttached): mixed
+    {
+        if (filled($data[$key] ?? null) || ! $justAttached) {
+            return $data[$key] ?? null;
+        }
+
+        return $employee?->{$key};
     }
 
     /**
@@ -307,7 +339,7 @@ class UserController extends Controller
             || filled($data['manager_id'] ?? null)
             || filled($data['hire_date'] ?? null);
 
-        if (blank($data['nip'] ?? null) && ($employee || $hasDetails)) {
+        if (blank($data['nip'] ?? null) && blank($data['employee_id'] ?? null) && ($employee || $hasDetails)) {
             throw ValidationException::withMessages([
                 'nip' => __('app.users.employee_nip_required'),
             ]);
@@ -320,6 +352,9 @@ class UserController extends Controller
     private function validateUser(Request $request, ?User $user = null): array
     {
         $employee = $user?->employee;
+        $targetEmployee = $request->filled('employee_id')
+            ? Employee::query()->find($request->integer('employee_id'))
+            : $employee;
 
         $managerRule = [
             'nullable',
@@ -329,17 +364,18 @@ class UserController extends Controller
             )->where('status', 'active'),
         ];
 
-        if ($employee) {
-            $managerRule[] = Rule::notIn([$employee->id]);
+        if ($targetEmployee) {
+            $managerRule[] = Rule::notIn([$targetEmployee->id]);
         }
 
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
             'role' => ['required', ...$this->roleRule($request)],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:8'],
             'is_active' => ['nullable', 'boolean'],
-            'nip' => ['nullable', 'string', 'max:40', Rule::unique('employees', 'nip')->ignore($employee?->id)],
+            'employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
+            'nip' => ['nullable', 'string', 'max:40', Rule::unique('employees', 'nip')->ignore($targetEmployee?->id)],
             'phone' => ['nullable', 'string', 'max:30'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'position_id' => ['nullable', 'integer', 'exists:positions,id'],
@@ -349,6 +385,30 @@ class UserController extends Controller
             'photo_data' => ['nullable', 'string'],
             'remove_photo' => ['nullable', 'boolean'],
         ]);
+
+        if (filled($data['employee_id'] ?? null)) {
+            $selected = Employee::query()->find($data['employee_id']);
+
+            if ($selected && $selected->user_id && (int) $selected->user_id !== (int) $user?->id) {
+                throw ValidationException::withMessages([
+                    'employee_id' => __('app.users.employee_already_linked'),
+                ]);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Employee records that do not have a login yet.
+     */
+    private function unlinkedEmployees()
+    {
+        return Employee::query()
+            ->whereNull('user_id')
+            ->with(['department', 'position'])
+            ->orderBy('name')
+            ->get();
     }
 
     /**

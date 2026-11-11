@@ -133,7 +133,7 @@
 
     @php $blankUser = new \App\Models\User; @endphp
 
-    @php $employeeFields = ['departments' => $departments, 'positions' => $positions, 'managers' => $managers]; @endphp
+    @php $employeeFields = ['departments' => $departments, 'positions' => $positions, 'managers' => $managers, 'employeeOptions' => $employeeOptions]; @endphp
 
     <x-modal-form id="user-create" :title="__('app.users.create_title')" :subtitle="__('app.users.subtitle')" :action="route('users.store')" :open="$openModal === 'user-create'" wide>
         @include('users._fields', ['user' => $blankUser, 'roleOptions' => $roleOptions, 'prefix' => 'user-create'] + $employeeFields)
@@ -151,3 +151,46 @@
         </x-modal-form>
     @endif
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[data-employee-link]').forEach((picker) => {
+                const form = picker.closest('form');
+
+                if (! form) {
+                    return;
+                }
+
+                picker.addEventListener('change', () => {
+                    const option = picker.selectedOptions[0];
+
+                    if (! option || ! option.value) {
+                        return;
+                    }
+
+                    const setField = (name, value) => {
+                        form.querySelectorAll(`[name="${name}"]`).forEach((field) => {
+                            field.value = value ?? '';
+                        });
+                    };
+
+                    if (option.dataset.name) {
+                        setField('name', option.dataset.name);
+                    }
+
+                    setField('nip', option.dataset.nip);
+                    setField('phone', option.dataset.phone);
+                    setField('department_id', option.dataset.departmentId);
+                    setField('position_id', option.dataset.positionId);
+                    setField('manager_id', option.dataset.managerId);
+                    setField('hire_date', option.dataset.hireDate);
+
+                    if (option.dataset.status) {
+                        setField('status', option.dataset.status);
+                    }
+                });
+            });
+        });
+    </script>
+@endpush

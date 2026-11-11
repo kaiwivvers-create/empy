@@ -138,7 +138,15 @@ class Evaluation extends Model
             return null;
         }
 
-        return round((float) $submitted->avg('score') / 5 * 100, 2);
+        $scores = $submitted
+            ->map(fn (PeerFeedback $feedback) => $feedback->overallScore())
+            ->filter(fn ($value) => $value !== null);
+
+        if ($scores->isEmpty()) {
+            return null;
+        }
+
+        return round((float) $scores->avg(), 2);
     }
 
     /**

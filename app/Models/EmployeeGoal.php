@@ -40,6 +40,7 @@ class EmployeeGoal extends Model
         'target_value',
         'unit',
         'achievement_value',
+        'completed_at',
         'notes',
     ];
 
@@ -48,6 +49,7 @@ class EmployeeGoal extends Model
         return [
             'target_value' => 'decimal:2',
             'achievement_value' => 'decimal:2',
+            'completed_at' => 'datetime',
         ];
     }
 
@@ -68,6 +70,11 @@ class EmployeeGoal extends Model
         }
 
         return round((float) $this->achievement_value / (float) $this->target_value * 100, 1);
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->completed_at !== null;
     }
 
     public static function unitAllowsDecimals(?string $unit): bool

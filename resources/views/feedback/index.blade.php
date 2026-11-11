@@ -46,17 +46,44 @@
                             <span class="badge-amber">{{ __('app.feedback.pending') }}</span>
                         </div>
 
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            @for ($score = 1; $score <= 5; $score++)
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="score" value="{{ $score }}" class="peer sr-only" required>
-                                    <span class="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-500 transition hover:border-indigo-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-600 peer-checked:text-white">
-                                        {{ $score }}
-                                    </span>
-                                </label>
-                            @endfor
-                        </div>
-                        @error('score') <p class="form-error">{{ $message }}</p> @enderror
+                        @if ($criteria->isNotEmpty())
+                            <p class="mt-3 text-xs leading-relaxed text-slate-500">{{ __('app.feedback.criteria_hint') }}</p>
+                            <div class="mt-2 space-y-3">
+                                @foreach ($criteria as $criterion)
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <p class="text-sm font-semibold text-slate-800">
+                                                {{ $criterion->name }}
+                                                <span class="ml-1 text-xs font-normal text-slate-400">{{ rtrim(rtrim(number_format((float) $criterion->weight, 2), '0'), '.') }}%</span>
+                                            </p>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                @for ($score = 1; $score <= 5; $score++)
+                                                    <label class="cursor-pointer">
+                                                        <input type="radio" name="scores[{{ $criterion->id }}]" value="{{ $score }}" class="peer sr-only" required>
+                                                        <span class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 transition hover:border-indigo-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-600 peer-checked:text-white">
+                                                            {{ $score }}
+                                                        </span>
+                                                    </label>
+                                                @endfor
+                                            </div>
+                                        </div>
+                                        @error('scores.'.$criterion->id) <p class="form-error">{{ $message }}</p> @enderror
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                @for ($score = 1; $score <= 5; $score++)
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="score" value="{{ $score }}" class="peer sr-only" required>
+                                        <span class="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-500 transition hover:border-indigo-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-600 peer-checked:text-white">
+                                            {{ $score }}
+                                        </span>
+                                    </label>
+                                @endfor
+                            </div>
+                            @error('score') <p class="form-error">{{ $message }}</p> @enderror
+                        @endif
 
                         <div class="mt-3">
                             <label class="label" for="comment-{{ $item->id }}">{{ __('app.common.comment') }} ({{ __('app.common.optional') }})</label>
@@ -94,7 +121,7 @@
                     <div class="px-5 py-3.5">
                         <div class="flex items-center justify-between gap-2">
                             <p class="text-sm font-semibold text-slate-800">{{ $item->evaluation?->employee?->name }}</p>
-                            <span class="badge-indigo">{{ $item->score }}/5</span>
+                            <span class="badge-indigo">{{ number_format($item->overallScore() ?? 0, 0) }}%</span>
                         </div>
                         <p class="text-xs text-slate-400">{{ $item->evaluation?->period?->name }}</p>
                         @if ($item->comment)
@@ -144,13 +171,13 @@
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <label class="label" for="feedback-reviewer-id">{{ __('app.feedback.reviewer') }}</label>
-                    <select id="feedback-reviewer-id"
-                            class="input cursor-not-allowed bg-slate-100 text-slate-500 disabled:opacity-80"
-                            data-feedback-reviewer-self
-                            disabled>
-                        <option selected>{{ auth()->user()->name }} ({{ auth()->user()->roleLabel() }})</option>
+                    <select id="feedback-reviewer-id" name="reviewer_id" class="input" required>
+                        @foreach ($reviewerOptions as $reviewer)
+                            <option value="{{ $reviewer->id }}" @selected((string) old('reviewer_id', auth()->id()) === (string) $reviewer->id)>
+                                {{ $reviewer->name }} ({{ $reviewer->roleLabel() }})
+                            </option>
+                        @endforeach
                     </select>
-                    <input type="hidden" name="reviewer_id" value="{{ auth()->user()->id }}">
                 </div>
 
                 <div>

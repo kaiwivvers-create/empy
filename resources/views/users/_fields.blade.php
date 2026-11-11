@@ -7,6 +7,11 @@
     $departments = $departments ?? collect();
     $positions = $positions ?? collect();
     $managers = $managers ?? collect();
+    $employeeOptions = collect($employeeOptions ?? collect());
+
+    if ($employee && ! $employeeOptions->contains('id', $employee->id)) {
+        $employeeOptions = $employeeOptions->prepend($employee);
+    }
 @endphp
 
 <div class="grid gap-4 sm:grid-cols-2">
@@ -53,6 +58,29 @@
     <div>
         <h3 class="text-sm font-bold text-slate-900">{{ __('app.users.employee_section') }}</h3>
         <p class="mt-0.5 text-xs leading-relaxed text-slate-500">{{ __('app.users.employee_hint') }}</p>
+    </div>
+
+    <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
+        <label class="label" for="{{ $prefix }}-employee-link">{{ __('app.users.link_employee') }}</label>
+        <select id="{{ $prefix }}-employee-link" name="employee_id" class="input" data-employee-link data-searchable>
+            <option value="">{{ __('app.users.link_employee_none') }}</option>
+            @foreach ($employeeOptions as $candidate)
+                <option value="{{ $candidate->id }}"
+                        @selected((string) old('employee_id', $employee?->id) === (string) $candidate->id)
+                        data-name="{{ $candidate->name }}"
+                        data-nip="{{ $candidate->nip }}"
+                        data-phone="{{ $candidate->phone }}"
+                        data-department-id="{{ $candidate->department_id }}"
+                        data-position-id="{{ $candidate->position_id }}"
+                        data-manager-id="{{ $candidate->manager_id }}"
+                        data-hire-date="{{ $candidate->hire_date?->format('Y-m-d') }}"
+                        data-status="{{ $candidate->status }}">
+                    {{ $candidate->name }} — {{ $candidate->nip }}
+                </option>
+            @endforeach
+        </select>
+        <p class="mt-1 text-xs leading-relaxed text-slate-500">{{ __('app.users.link_employee_hint') }}</p>
+        @error('employee_id') <p class="form-error">{{ $message }}</p> @enderror
     </div>
 
     @include('partials.image-cropper', [

@@ -51,6 +51,7 @@ class EmployeeController extends Controller
             'positions' => Position::when(! $user->isSuperAdmin(), fn ($query) => $query->where('is_visible', true))->orderBy('name')->get(),
             'managers' => $this->managerEmployees(),
             'accountRoles' => $this->accountRoles(),
+            'linkableUsers' => $this->linkableUsers(),
             'isManagerView' => $user->isManager(),
             'showTrashed' => $showTrashed,
             'filters' => $request->only('search', 'department', 'status'),
@@ -124,6 +125,7 @@ class EmployeeController extends Controller
                 ->reject(fn (Employee $manager) => $manager->id === $employee->id)
                 ->values(),
             'accountRoles' => $this->accountRoles(),
+            'linkableUsers' => $this->linkableUsers($employee),
         ]);
     }
 
@@ -225,7 +227,28 @@ class EmployeeController extends Controller
             'remove_photo' => ['nullable', 'boolean'],
         ]);
 
-        if (filled($data['account_email'] ?? null)) {
+        if (filled($data['user_id'] ?? null)) {
+            $selected = User::find($data['user_id']);
+
+            if ($selected?->isSuperAdmin() && ! $request->user()->isSuperAdmin()) {
+                throw ValidationException::withMessages([
+                    'user_id' => __('app.employees.account_taken'),
+                ]);
+            }
+
+            $taken = Employee::withTrashed()
+                ->where('user_id', $data['user_id'])
+                ->when($employee, fn ($query) => $query->whereKeyNot($employee->id))
+                ->exists();
+
+            if ($taken) {
+                throw ValidationException::withMessages([
+                    'user_id' => __('app.employees.account_taken'),
+                ]);
+            }
+        }
+
+        if (blank($data['user_id'] ?? null) && filled($data['account_email'] ?? null)) {
             $linkedUser = $employee?->user;
 
             $exists = User::where('email', $data['account_email'])
@@ -264,6 +287,24 @@ class EmployeeController extends Controller
      */
     private function syncAccount(array $data, ?Employee $employee = null): array
     {
+        if (filled($data['user_id'] ?? null)) {
+            $selected = User::find($data['user_id']);
+
+            if (! $selected || $selected->isSuperAdmin()) {
+                return ['user_id' => $employee?->user_id];
+            }
+
+            if ($selected->name !== $data['name']) {
+                $selected->update(['name' => $data['name']]);
+            }
+
+            if (filled($data['account_password'] ?? null)) {
+                $selected->update(['password' => $data['account_password']]);
+            }
+
+            return ['user_id' => $selected->id];
+        }
+
         $email = $data['account_email'] ?? null;
         $linked = $employee?->user;
 
@@ -417,9 +458,29 @@ class EmployeeController extends Controller
             ->get();
     }
 
+    /**
+     * Login accounts that can still be linked to an employee.
+     */
+    private function linkableUsers(?Employee $employee = null)
+    {
+        return User::query()
+            ->when(! auth()->user()?->isSuperAdmin(), fn ($query) => $query->where('role', '!=', User::ROLE_SUPER_ADMIN))
+            ->where(function ($query) use ($employee) {
+                $query->whereNotIn('id', Employee::withTrashed()->whereNotNull('user_id')->select('user_id'))
+                    ->when($employee?->user_id, fn ($inner) => $inner->orWhereKey($employee->user_id));
+            })
+            ->orderBy('name')
+            ->get();
+    }
+
     private function authorizeView(Request $request, Employee $employee): void
     {
         $user = $request->user();
+
+        // Archived records stay visible to admins, but not to their owner.
+        if ($employee->trashed() && ! $user->isAdmin()) {
+            abort(404);
+        }
 
         if ($user->isAdmin() || $employee->user_id === $user->id) {
             return;

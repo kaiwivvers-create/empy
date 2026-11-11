@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Criterion;
 use App\Models\Evaluation;
 use App\Models\PeerFeedback;
 use App\Models\User;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class PeerFeedbackController extends Controller
@@ -53,7 +55,17 @@ class PeerFeedbackController extends Controller
                 ->values();
         }
 
-        return view('feedback.index', compact('feedback', 'canSend', 'evaluations', 'periods'));
+        $criteria = Criterion::active()->get();
+
+        // Kept to login accounts only so hidden super admins are never offered.
+        $reviewerOptions = $canSend
+            ? User::query()
+                ->when(! $user->isSuperAdmin(), fn ($query) => $query->where('role', '!=', User::ROLE_SUPER_ADMIN))
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        return view('feedback.index', compact('feedback', 'canSend', 'evaluations', 'periods', 'criteria', 'reviewerOptions'));
     }
 
     public function store(Request $request, Evaluation $evaluation): RedirectResponse
@@ -154,23 +166,69 @@ class PeerFeedbackController extends Controller
             return redirect()->route('feedback.index')->with('error', __('app.feedback.already_submitted'));
         }
 
-        $data = $request->validate([
-            'score' => ['required', 'integer', 'min:1', 'max:5'],
-            'comment' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $criteria = Criterion::active()->get();
 
+        $rules = [
+            'score' => ['nullable', 'integer', 'min:1', 'max:5', 'required_without:scores'],
+            'scores' => ['nullable', 'array', 'required_without:score'],
+            'comment' => ['nullable', 'string', 'max:1000'],
+            'comments' => ['nullable', 'array'],
+        ];
+
+        foreach ($criteria as $criterion) {
+            $rules["scores.{$criterion->id}"] = [$request->has('scores') ? 'required' : 'nullable', 'integer', 'min:1', 'max:5'];
+            $rules["comments.{$criterion->id}"] = ['nullable', 'string', 'max:500'];
+        }
+
+        $data = $request->validate($rules);
         $before = $feedback->getAttributes();
 
-        $feedback->update([
-            'score' => $data['score'],
-            'comment' => $data['comment'] ?? null,
-            'submitted_at' => now(),
-        ]);
+        $weighted = 0.0;
+        $totalWeight = 0.0;
+
+        foreach ($criteria as $criterion) {
+            $rating = $data['scores'][$criterion->id] ?? null;
+
+            if ($rating === null) {
+                continue;
+            }
+
+            $weight = (float) $criterion->weight;
+            $weighted += (float) $rating * $weight;
+            $totalWeight += $weight;
+        }
+
+        // The stored score keeps the legacy 1-5 shape; the weighted value is
+        // derived from the criterion ratings whenever they are supplied.
+        $overallScore = $totalWeight > 0
+            ? (int) round($weighted / $totalWeight)
+            : (int) ($data['score'] ?? 0);
+
+        DB::transaction(function () use ($feedback, $criteria, $data, $overallScore) {
+            $feedback->update([
+                'score' => $overallScore,
+                'comment' => $data['comment'] ?? null,
+                'submitted_at' => now(),
+            ]);
+
+            foreach ($criteria as $criterion) {
+                $rating = $data['scores'][$criterion->id] ?? null;
+
+                if ($rating === null) {
+                    continue;
+                }
+
+                $feedback->scores()->updateOrCreate(
+                    ['criteria_id' => $criterion->id],
+                    ['score' => $rating, 'comment' => $data['comments'][$criterion->id] ?? null],
+                );
+            }
+        });
 
         $evaluation = $feedback->evaluation;
 
         if ($evaluation && $evaluation->isSubmitted()) {
-            $evaluation->load('peerFeedbacks');
+            $evaluation->load('peerFeedbacks.scores.criterion');
             $evaluation->update(['final_score' => $evaluation->recomputeFinalScore()]);
         }
 

@@ -241,6 +241,7 @@ class EvaluationController extends Controller
             'period',
             'evaluator',
             'peerFeedbacks.reviewer',
+            'peerFeedbacks.scores.criterion',
             'improvementPlans.creator',
         ]);
 

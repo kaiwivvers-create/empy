@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Criterion;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeGoal;
 use App\Models\Evaluation;
 use App\Models\EvaluationPeriod;
 use App\Models\ImprovementPlan;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Notifications\EvaluationReminderNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -122,8 +124,7 @@ class ExtendedFeaturesTest extends TestCase
             ->assertSee('data-modal-open="feedback-request-modal"', false)
             ->assertSee('data-feedback-period-filter', false)
             ->assertSee('data-period="'.$evaluation->period_id.'"', false)
-            ->assertSee('name="reviewer_id" value="'.$this->manager->id.'"', false)
-            ->assertSee('data-feedback-reviewer-self', false)
+            ->assertSee('name="reviewer_id"', false)
             ->assertSee('name="evaluation_id"', false);
 
         $this->actingAs($this->employeeUser)
@@ -248,6 +249,230 @@ class ExtendedFeaturesTest extends TestCase
             ->assertRedirect('/employees?trashed=1');
 
         $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+    }
+
+    public function test_employee_csv_without_optional_columns_creates_a_login_account(): void
+    {
+        $csv = "nip,name,email\nE-101,Partial Person,partial@test.test\n";
+
+        $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
+
+        $this->actingAs($this->admin)
+            ->post('/employees/import', ['file' => $file])
+            ->assertRedirect('/employees?open=import');
+
+        $employee = Employee::where('nip', 'E-101')->firstOrFail();
+        $user = User::where('email', 'partial@test.test')->firstOrFail();
+
+        $this->assertSame($user->id, $employee->user_id);
+        $this->assertSame('employee', $user->role);
+        $this->assertTrue(Hash::check('password', $user->password));
+    }
+
+    public function test_employee_csv_accepts_aliased_and_reordered_columns(): void
+    {
+        $csv = "Nama,Employee ID,Email Address\nAliased Person,E-102,aliased@test.test\n";
+
+        $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
+
+        $this->actingAs($this->admin)
+            ->post('/employees/import', ['file' => $file])
+            ->assertRedirect('/employees?open=import');
+
+        $this->assertDatabaseHas('employees', ['nip' => 'E-102', 'name' => 'Aliased Person']);
+        $this->assertDatabaseHas('users', ['email' => 'aliased@test.test']);
+    }
+
+    public function test_archived_employee_detail_is_still_viewable_by_admin(): void
+    {
+        $employee = Employee::create(['nip' => 'E-201', 'name' => 'Archived View', 'status' => 'active']);
+        $employee->delete();
+
+        $this->actingAs($this->admin)
+            ->get("/employees/{$employee->id}")
+            ->assertOk()
+            ->assertSee('Archived View')
+            ->assertSee(__('app.employees.archived_notice'));
+    }
+
+    public function test_user_can_be_linked_to_an_existing_employee(): void
+    {
+        $user = User::create([
+            'name' => 'Link Target', 'email' => 'link.target@test.test',
+            'password' => 'password', 'role' => 'employee',
+        ]);
+
+        $employee = Employee::create([
+            'nip' => 'E-210', 'name' => 'Existing Employee',
+            'phone' => '08123', 'status' => 'active',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->put("/users/{$user->id}", [
+                'name' => 'Link Target',
+                'email' => 'link.target@test.test',
+                'role' => 'employee',
+                'is_active' => 1,
+                'employee_id' => $employee->id,
+                'nip' => 'E-210',
+                'phone' => '08123',
+                'status' => 'active',
+            ])
+            ->assertRedirect('/users');
+
+        $this->assertSame($user->id, $employee->fresh()->user_id);
+
+        $other = User::create([
+            'name' => 'Other', 'email' => 'other@test.test',
+            'password' => 'password', 'role' => 'employee',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->put("/users/{$other->id}", [
+                'name' => 'Other',
+                'email' => 'other@test.test',
+                'role' => 'employee',
+                'is_active' => 1,
+                'employee_id' => $employee->id,
+                'nip' => 'E-210',
+                'status' => 'active',
+            ])
+            ->assertSessionHasErrors('employee_id');
+
+        $this->assertSame($user->id, $employee->fresh()->user_id);
+    }
+
+    public function test_employee_can_be_linked_to_an_existing_user(): void
+    {
+        $user = User::create([
+            'name' => 'Unlinked Account', 'email' => 'unlinked@test.test',
+            'password' => 'password', 'role' => 'employee',
+        ]);
+
+        $employee = Employee::create([
+            'nip' => 'E-211', 'name' => 'Employee No Login', 'status' => 'active',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->put("/employees/{$employee->id}", [
+                'nip' => 'E-211',
+                'name' => 'Employee No Login',
+                'status' => 'active',
+                'account_role' => 'employee',
+                'user_id' => $user->id,
+            ])
+            ->assertRedirect("/employees/{$employee->id}");
+
+        $this->assertSame($user->id, $employee->fresh()->user_id);
+
+        $second = Employee::create([
+            'nip' => 'E-212', 'name' => 'Second Employee', 'status' => 'active',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->put("/employees/{$second->id}", [
+                'nip' => 'E-212',
+                'name' => 'Second Employee',
+                'status' => 'active',
+                'account_role' => 'employee',
+                'user_id' => $user->id,
+            ])
+            ->assertSessionHasErrors('user_id');
+
+        $this->assertNull($second->fresh()->user_id);
+    }
+
+    public function test_kpi_can_be_marked_complete_once_the_target_is_hit(): void
+    {
+        $goal = EmployeeGoal::create([
+            'employee_id' => $this->subordinate->id,
+            'period_id' => $this->period->id,
+            'title' => 'Finish project',
+            'target_value' => 10,
+            'unit' => 'tasks',
+            'achievement_value' => 10,
+        ]);
+
+        $this->actingAs($this->manager)
+            ->patch("/employees/{$this->subordinate->id}/goals/{$goal->id}/complete")
+            ->assertRedirect();
+
+        $this->assertNotNull($goal->fresh()->completed_at);
+
+        $this->actingAs($this->manager)
+            ->patch("/employees/{$this->subordinate->id}/goals/{$goal->id}/complete")
+            ->assertRedirect();
+
+        $this->assertNull($goal->fresh()->completed_at);
+    }
+
+    public function test_kpi_below_target_cannot_complete_and_old_progress_stays_editable(): void
+    {
+        $goal = EmployeeGoal::create([
+            'employee_id' => $this->subordinate->id,
+            'period_id' => $this->period->id,
+            'title' => 'Finish project',
+            'target_value' => 10,
+            'unit' => 'tasks',
+            'achievement_value' => 5,
+        ]);
+
+        $this->actingAs($this->manager)
+            ->patch("/employees/{$this->subordinate->id}/goals/{$goal->id}/complete")
+            ->assertSessionHas('error');
+
+        $this->assertNull($goal->fresh()->completed_at);
+
+        $this->period->update(['start_date' => '2024-01-01', 'end_date' => '2024-03-31']);
+
+        $this->actingAs($this->manager)
+            ->put("/employees/{$this->subordinate->id}/goals/{$goal->id}", [
+                'period_id' => $this->period->id,
+                'title' => 'Changed target',
+                'target_value' => 999,
+                'unit' => 'tasks',
+                'achievement_value' => 10,
+            ])
+            ->assertRedirect();
+
+        $goal->refresh();
+
+        $this->assertSame('Finish project', $goal->title);
+        $this->assertSame('10.00', $goal->target_value);
+        $this->assertSame('10.00', $goal->achievement_value);
+    }
+
+    public function test_peer_feedback_rates_the_active_criteria(): void
+    {
+        $criterion = Criterion::firstOrFail();
+        $evaluation = $this->submittedEvaluation();
+
+        $this->actingAs($this->admin)
+            ->post("/evaluations/{$evaluation->id}/reviewers", [
+                'reviewer_id' => $this->reviewerUser->id,
+                'relationship' => 'peer',
+            ])
+            ->assertRedirect();
+
+        $feedback = PeerFeedback::firstOrFail();
+
+        $this->actingAs($this->reviewerUser)
+            ->post("/feedback/{$feedback->id}", [
+                'scores' => [$criterion->id => 4],
+                'comment' => 'Solid partner',
+            ])
+            ->assertRedirect('/feedback');
+
+        $evaluation->refresh();
+
+        // Manager 80 and criteria-weighted peer rating 4/5 (80) combine to 80.
+        $this->assertSame(80.0, (float) $evaluation->peerScore());
+        $this->assertSame(80.0, (float) $evaluation->final_score);
+        $this->assertDatabaseHas('peer_feedback_scores', [
+            'peer_feedback_id' => $feedback->id,
+            'criteria_id' => $criterion->id,
+            'score' => 4,
+        ]);
     }
 
     public function test_reminder_command_emails_managers_with_pending_team_members(): void

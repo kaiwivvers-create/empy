@@ -5,6 +5,11 @@
     $accountRoles = $accountRoles ?? collect(['employee', 'manager'])
         ->mapWithKeys(fn (string $role) => [$role => __('app.roles.'.$role)])->all();
     $accountPicker = $accountPicker ?? null;
+    $linkableUsers = collect($linkableUsers ?? collect());
+
+    if ($linkedUser && ! $linkableUsers->contains('id', $linkedUser->id)) {
+        $linkableUsers = $linkableUsers->prepend($linkedUser);
+    }
 @endphp
 
 <div class="grid gap-5 lg:grid-cols-3">
@@ -156,6 +161,20 @@
                         {{ __('app.employees.linked_account') }}: {{ $linkedUser->email }}
                     </div>
                 @endif
+
+                <div>
+                    <label class="label" for="{{ $prefix }}-account-link">{{ __('app.employees.link_account') }}</label>
+                    <select id="{{ $prefix }}-account-link" name="user_id" class="input" data-searchable>
+                        <option value="">{{ __('app.employees.link_account_none') }}</option>
+                        @foreach ($linkableUsers as $candidate)
+                            <option value="{{ $candidate->id }}" @selected((string) old('user_id', $linkedUser?->id) === (string) $candidate->id)>
+                                {{ $candidate->name }} — {{ $candidate->email }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs leading-relaxed text-slate-500">{{ __('app.employees.link_account_hint') }}</p>
+                    @error('user_id') <p class="form-error">{{ $message }}</p> @enderror
+                </div>
 
                 <div>
                     <label class="label" for="{{ $prefix }}-account-email">{{ __('app.common.email') }}</label>

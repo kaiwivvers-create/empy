@@ -23,7 +23,12 @@
                 @php $percent = $goal->achievementPercent(); @endphp
                 <tr class="table-row">
                     <td>
-                        <p class="font-semibold text-slate-800">{{ $goal->title }}</p>
+                        <p class="font-semibold text-slate-800">
+                            {{ $goal->title }}
+                            @if ($goal->isCompleted())
+                                <span class="badge-green ml-1">{{ __('app.goals.completed') }}</span>
+                            @endif
+                        </p>
                         <p class="text-xs text-slate-400">
                             {{ __('app.goals.target') }}: {{ rtrim(rtrim(number_format((float) $goal->target_value, 2), '0'), '.') }} {{ $goal->unit }}
                             @if ($goal->notes) · {{ $goal->notes }} @endif
@@ -49,13 +54,28 @@
                     </td>
                     @if ($canManage)
                         <td>
-                            <form method="POST" action="{{ route('employees.goals.destroy', [$employee, $goal]) }}" onsubmit="return confirm('{{ __('app.common.confirm_delete') }}')" class="flex items-center justify-end">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600">
-                                    <svg class="h-4 w-4"><use href="#i-trash"/></svg>
-                                </button>
-                            </form>
+                            <div class="flex items-center justify-end gap-1">
+                                @if ($goal->isCompleted())
+                                    <form method="POST" action="{{ route('employees.goals.complete', [$employee, $goal]) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="btn-ghost text-amber-600 hover:bg-amber-50">{{ __('app.goals.mark_incomplete') }}</button>
+                                    </form>
+                                @elseif ($goal->achievementPercent() !== null && $goal->achievementPercent() >= 100)
+                                    <form method="POST" action="{{ route('employees.goals.complete', [$employee, $goal]) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="btn-ghost text-emerald-600 hover:bg-emerald-50">{{ __('app.goals.mark_complete') }}</button>
+                                    </form>
+                                @endif
+                                <form method="POST" action="{{ route('employees.goals.destroy', [$employee, $goal]) }}" onsubmit="return confirm('{{ __('app.common.confirm_delete') }}')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600">
+                                        <svg class="h-4 w-4"><use href="#i-trash"/></svg>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     @endif
                 </tr>

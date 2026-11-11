@@ -70,10 +70,11 @@ Route::middleware(['auth', 'page.access'])->group(function () {
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
         Route::patch('/employees/{id}/restore', [EmployeeController::class, 'restore'])->name('employees.restore');
     });
-    Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
+    Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->withTrashed()->name('employees.show');
     Route::get('/employees/{employee}/goals', [EmployeeGoalController::class, 'index'])->name('employees.goals.index');
     Route::post('/employees/{employee}/goals', [EmployeeGoalController::class, 'store'])->name('employees.goals.store');
     Route::put('/employees/{employee}/goals/{goal}', [EmployeeGoalController::class, 'update'])->name('employees.goals.update');
+    Route::patch('/employees/{employee}/goals/{goal}/complete', [EmployeeGoalController::class, 'complete'])->name('employees.goals.complete');
     Route::delete('/employees/{employee}/goals/{goal}', [EmployeeGoalController::class, 'destroy'])->name('employees.goals.destroy');
 
     Route::middleware('role:admin')->group(function () {

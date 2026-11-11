@@ -32,7 +32,7 @@
                     {{ __('app.evaluations.pdf') }}
                 </a>
             @endif
-            @if ($viewer->isAdmin())
+            @if ($viewer->isAdmin() && ! $employee->trashed())
                 <button type="button" class="btn-primary" data-modal-open="employee-show-edit">
                     <svg class="h-4 w-4"><use href="#i-pencil"/></svg>
                     {{ __('app.actions.edit') }}
@@ -40,6 +40,19 @@
             @endif
         </div>
     </div>
+
+    @if ($employee->trashed())
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p class="font-semibold">{{ __('app.employees.archived_notice') }}</p>
+            @if ($viewer->isAdmin())
+                <form method="POST" action="{{ route('employees.restore', $employee->id) }}">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="btn-secondary">{{ __('app.common.restore') }}</button>
+                </form>
+            @endif
+        </div>
+    @endif
 
     <div class="grid gap-5 lg:grid-cols-3">
         <div class="space-y-5 lg:col-span-2">
@@ -154,7 +167,12 @@
                         @php $percent = $goal->achievementPercent(); @endphp
                         <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
                             <div>
-                                <p class="text-sm font-semibold text-slate-800">{{ $goal->title }}</p>
+                                <p class="text-sm font-semibold text-slate-800">
+                                    {{ $goal->title }}
+                                    @if ($goal->isCompleted())
+                                        <span class="badge-green ml-1">{{ __('app.goals.completed') }}</span>
+                                    @endif
+                                </p>
                                 <p class="text-xs text-slate-400">
                                     {{ $goal->period?->name }} · {{ __('app.goals.target') }}
                                     {{ rtrim(rtrim(number_format((float) $goal->target_value, 2), '0'), '.') }} {{ $goal->unit }}
@@ -266,7 +284,7 @@
         </script>
     @endpush
 
-    @if (auth()->user()->isAdmin())
+    @if (auth()->user()->isAdmin() && ! $employee->trashed())
         <x-modal-form id="employee-show-edit" :title="__('app.employees.edit_title')" :subtitle="__('app.employees.subtitle')" :action="route('employees.update', $employee)" method="PUT" enctype="multipart/form-data" wide :open="old('_modal') === 'employee-show-edit'">
             @include('employees._fields', [
                 'employee' => $employee,
@@ -274,6 +292,7 @@
                 'positions' => $positions,
                 'managers' => $managers,
                 'accountRoles' => $accountRoles,
+                'linkableUsers' => $linkableUsers,
                 'prefix' => 'employee-show-edit',
             ])
         </x-modal-form>

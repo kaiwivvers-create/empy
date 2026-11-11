@@ -185,6 +185,7 @@
                 'positions' => $positions,
                 'managers' => $managers,
                 'accountRoles' => $accountRoles,
+                'linkableUsers' => $linkableUsers,
                 'prefix' => 'employee-create',
             ])
         </x-modal-form>
@@ -250,6 +251,7 @@
                         'positions' => $positions,
                         'managers' => $managers,
                         'accountRoles' => $accountRoles,
+                        'linkableUsers' => $linkableUsers,
                         'prefix' => 'employee-edit-'.$employee->id,
                     ])
                 </x-modal-form>
@@ -264,6 +266,7 @@
                     'positions' => $positions,
                     'managers' => $managers,
                     'accountRoles' => $accountRoles,
+                    'linkableUsers' => $linkableUsers,
                     'prefix' => 'employee-edit-'.$editItem->id,
                 ])
             </x-modal-form>

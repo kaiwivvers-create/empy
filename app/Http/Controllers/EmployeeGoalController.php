@@ -104,8 +104,13 @@ class EmployeeGoalController extends Controller
         $before = $goal->getAttributes();
         $data = $this->validated($request, $goal);
 
-        if ($this->periodLocked($request, (int) $data['period_id'])) {
-            return back()->with('error', __('app.goals.period_locked'));
+        if ($this->periodLocked($request, (int) $goal->period_id)) {
+            // Once the window closes only progress and notes stay editable; the
+            // agreed target itself is kept as it was.
+            $data['period_id'] = $goal->period_id;
+            $data['title'] = $goal->title;
+            $data['target_value'] = $goal->target_value;
+            $data['unit'] = $goal->unit;
         }
 
         $goal->update($data);
@@ -119,6 +124,35 @@ class EmployeeGoalController extends Controller
 
         return redirect()->route('kpi.index', ['employee' => $employee->id, 'period' => $data['period_id']])
             ->with('success', __('app.goals.success_updated'));
+    }
+
+    /**
+     * Toggle a KPI between completed and incomplete. Completion is only
+     * possible once the achievement has reached the target, and it can always
+     * be reopened, including for previous periods.
+     */
+    public function complete(Request $request, Employee $employee, EmployeeGoal $goal): RedirectResponse
+    {
+        $this->authorizeManage($request, $employee);
+        abort_unless($goal->employee_id === $employee->id, 404);
+
+        if ($goal->isCompleted()) {
+            $goal->update(['completed_at' => null]);
+
+            ActivityLogger::record('updated', 'KPI reopened for '.$employee->name.': '.$goal->title, $goal);
+
+            return back()->with('success', __('app.goals.success_reopened'));
+        }
+
+        if (($goal->achievementPercent() ?? 0) < 100) {
+            return back()->with('error', __('app.goals.complete_blocked'));
+        }
+
+        $goal->update(['completed_at' => now()]);
+
+        ActivityLogger::record('updated', 'KPI completed for '.$employee->name.': '.$goal->title, $goal);
+
+        return back()->with('success', __('app.goals.success_completed'));
     }
 
     public function destroy(Request $request, Employee $employee, EmployeeGoal $goal): RedirectResponse
