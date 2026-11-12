@@ -302,6 +302,16 @@ class NewFeaturesTest extends TestCase
         ]);
 
         $this->actingAs($this->manager)
+            ->get(route('evaluations.show', $evaluation))
+            ->assertOk()
+            ->assertDontSee(route('evaluations.reopen', $evaluation), false);
+
+        $this->actingAs($this->superAdmin)
+            ->get(route('evaluations.show', $evaluation))
+            ->assertOk()
+            ->assertSee(route('evaluations.reopen', $evaluation), false);
+
+        $this->actingAs($this->manager)
             ->patch(route('evaluations.reopen', $evaluation))
             ->assertForbidden();
 

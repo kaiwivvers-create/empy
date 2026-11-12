@@ -109,4 +109,19 @@ class OrganizationChartTest extends TestCase
             ])
             ->assertForbidden();
     }
+
+    public function test_chart_hides_edit_controls_from_managers(): void
+    {
+        $this->actingAs($this->manager)->get(route('organization.chart'))
+            ->assertOk()
+            ->assertDontSee(route('organization.departments.head', $this->department), false)
+            ->assertDontSee(route('organization.employees.manager', $this->member), false)
+            ->assertDontSee('name="head_id"', false)
+            ->assertDontSee('name="manager_id"', false);
+
+        $this->actingAs($this->admin)->get(route('organization.chart'))
+            ->assertOk()
+            ->assertSee(route('organization.departments.head', $this->department), false)
+            ->assertSee(route('organization.employees.manager', $this->member), false);
+    }
 }

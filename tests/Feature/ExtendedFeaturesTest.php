@@ -546,4 +546,33 @@ class ExtendedFeaturesTest extends TestCase
         $this->assertGuest();
         $this->assertTrue(\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, 5));
     }
+
+    public function test_login_lockout_lasts_a_full_window_and_disables_the_form(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post('/login', ['email' => 'admin@test.test', 'password' => 'wrong-password']);
+        }
+
+        // The fifth failure arms the lockout instead of waiting for another attempt.
+        $this->post('/login', ['email' => 'admin@test.test', 'password' => 'wrong-password'])
+            ->assertSessionHasErrors(['email' => __('app.auth.throttled', ['seconds' => 60])]);
+
+        // Even the correct password is refused while the lockout is active.
+        $this->post('/login', ['email' => 'admin@test.test', 'password' => 'password']);
+        $this->assertGuest();
+
+        $html = $this->get('/login')->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/<fieldset[^>]*data-lockout-fieldset[^>]*\sdisabled(?=[\s>])/', $html);
+        $this->assertStringContainsString('data-seconds="60"', $html);
+
+        $this->travel(30)->seconds();
+        $this->assertStringContainsString('data-seconds=', $this->get('/login')->getContent());
+
+        // The lockout runs a full 60 seconds from the latest failure.
+        $this->travel(31)->seconds();
+
+        $unlocked = $this->get('/login')->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-seconds=', $unlocked);
+        $this->assertDoesNotMatchRegularExpression('/<fieldset[^>]*data-lockout-fieldset[^>]*\sdisabled(?=[\s>])/', $unlocked);
+    }
 }

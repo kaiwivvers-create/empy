@@ -185,10 +185,6 @@
                     setField('position_id', option.dataset.positionId);
                     setField('manager_id', option.dataset.managerId);
                     setField('hire_date', option.dataset.hireDate);
-
-                    if (option.dataset.status) {
-                        setField('status', option.dataset.status);
-                    }
                 });
             });
         });

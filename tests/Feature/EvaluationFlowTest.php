@@ -171,6 +171,11 @@ class EvaluationFlowTest extends TestCase
         $this->assertSame(82.0, (float) $evaluation->final_score);
         $this->assertNotNull($evaluation->submitted_at);
         $this->assertCount(3, $evaluation->scores);
+
+        $this->actingAs($this->manager)
+            ->get("/evaluations/{$evaluation->id}/pdf")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
     }
 
     public function test_manager_cannot_evaluate_employee_outside_team(): void
@@ -240,6 +245,20 @@ class EvaluationFlowTest extends TestCase
             ->get('/reports/export/pdf')
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_manager_can_open_reporting_pages_and_navigation_hides_admin_menus(): void
+    {
+        $this->actingAs($this->manager)->get('/reports')->assertOk();
+        $this->actingAs($this->manager)->get('/reports/calibration')->assertOk();
+        $this->actingAs($this->manager)->get('/reports/progress')->assertOk();
+        $this->actingAs($this->manager)->get('/reports/export/excel')->assertOk();
+        $this->actingAs($this->manager)->get('/reports/export/pdf')->assertOk();
+
+        $this->actingAs($this->manager)->get('/dashboard')
+            ->assertOk()
+            ->assertDontSee(__('app.users.title'))
+            ->assertDontSee(__('app.activity.title'));
     }
 
     public function test_locale_can_be_switched_to_english(): void

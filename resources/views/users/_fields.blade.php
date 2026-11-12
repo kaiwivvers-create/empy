@@ -73,8 +73,7 @@
                         data-department-id="{{ $candidate->department_id }}"
                         data-position-id="{{ $candidate->position_id }}"
                         data-manager-id="{{ $candidate->manager_id }}"
-                        data-hire-date="{{ $candidate->hire_date?->format('Y-m-d') }}"
-                        data-status="{{ $candidate->status }}">
+                        data-hire-date="{{ $candidate->hire_date?->format('Y-m-d') }}">
                     {{ $candidate->name }} — {{ $candidate->nip }}
                 </option>
             @endforeach
@@ -142,14 +141,6 @@
             <label class="label" for="{{ $prefix }}-hire">{{ __('app.employees.hire_date') }}</label>
             <input id="{{ $prefix }}-hire" type="date" name="hire_date" value="{{ old('hire_date', $employee?->hire_date?->format('Y-m-d')) }}" class="input">
             @error('hire_date') <p class="form-error">{{ $message }}</p> @enderror
-        </div>
-        <div>
-            <label class="label" for="{{ $prefix }}-status">{{ __('app.common.status') }}</label>
-            <select id="{{ $prefix }}-status" name="status" class="input">
-                <option value="active" @selected(old('status', $employee?->status ?? 'active') === 'active')>{{ __('app.common.active') }}</option>
-                <option value="inactive" @selected(old('status', $employee?->status) === 'inactive')>{{ __('app.common.inactive') }}</option>
-            </select>
-            @error('status') <p class="form-error">{{ $message }}</p> @enderror
         </div>
     </div>
 </div>

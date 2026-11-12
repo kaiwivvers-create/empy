@@ -82,17 +82,28 @@
                 </div>
             </div>
 
-            @if ($errors->any())
+            @if ($lockoutSeconds > 0)
+                <div data-lockout
+                     data-seconds="{{ $lockoutSeconds }}"
+                     data-template="{{ __('app.auth.throttled', ['seconds' => '__SECONDS__']) }}"
+                     class="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                    <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                    </svg>
+                    <p data-lockout-text>{{ __('app.auth.throttled', ['seconds' => $lockoutSeconds]) }}</p>
+                </div>
+            @elseif ($errors->any())
                 <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                     {{ $errors->first() }}
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('login.store') }}" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5">
+            <form method="POST" action="{{ route('login.store') }}" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5">
                 @csrf
+                <fieldset data-lockout-fieldset class="m-0 min-w-0 space-y-4 border-0 p-0 disabled:opacity-60" @if ($lockoutSeconds > 0) disabled @endif>
                 <div>
                     <label for="email" class="label">{{ __('app.auth.email') }}</label>
-                    <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus
+                    <input id="email" name="email" type="email" value="{{ $email }}" required autofocus
                            class="input" placeholder="you@company.com">
                 </div>
                 <div>
@@ -164,10 +175,46 @@
                 </div>
 
                 <button type="submit" class="btn-primary w-full">{{ __('app.auth.sign_in') }}</button>
+                </fieldset>
             </form>
         </div>
     </div>
 </div>
+<script>
+    (() => {
+        const lockout = document.querySelector('[data-lockout]');
+        const fieldset = document.querySelector('[data-lockout-fieldset]');
+
+        if (!lockout || !fieldset) {
+            return;
+        }
+
+        const text = lockout.querySelector('[data-lockout-text]');
+        const template = lockout.dataset.template;
+        const deadline = Date.now() + (Number(lockout.dataset.seconds) || 0) * 1000;
+
+        let timer = null;
+
+        const render = () => {
+            const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+
+            if (left === 0) {
+                clearInterval(timer);
+                fieldset.removeAttribute('disabled');
+                lockout.remove();
+                document.getElementById('password')?.focus();
+                return;
+            }
+
+            if (text) {
+                text.textContent = template.replace('__SECONDS__', String(left));
+            }
+        };
+
+        render();
+        timer = setInterval(render, 250);
+    })();
+</script>
 <script>
     (() => {
         const siteKey = @json(config('services.turnstile.site_key'));
