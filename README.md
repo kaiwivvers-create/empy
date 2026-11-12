@@ -1,4 +1,4 @@
-# Empy — Employee Performance Evaluation
+<!-- # Empy — Employee Performance Evaluation
 
 A Laravel web application for employee performance evaluation. HRD manages the organization and evaluation setup, managers score their team on a 1–5 scale against weighted criteria, peers can contribute 360° feedback, and employees can sign in to see their own results. English is the default interface language, with an optional Indonesian translation.
 
@@ -116,4 +116,7 @@ database/migrations       Organization and evaluation schema, profile/branding/a
 database/seeders          English demo data
 lang/{id,en}/app.php      UI translations (English is the default)
 resources/views           Blade views (dashboard, CRUD, scoring form, reports, settings, profile modal, PDF templates)
-```
+``` -->
+
+
+lowk tweakin'
